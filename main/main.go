@@ -18,6 +18,7 @@ func main() {
 	args := os.Args
 	name := filepath.Base(args[0])
 	set := flag.NewFlagSet(name, flag.ExitOnError)
+	cfg := set.String("c", "resources/config/application.json", "配置文件")
 	ver := set.Bool("v", false, "打印版本")
 	_ = set.Parse(args[1:])
 	if *ver {
@@ -36,13 +37,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), signals...)
 	defer cancel()
 
-	testCfg := &config.Boot{
-		ID:      "68b1572248fd2282fa1756aa",
-		Secret:  "b02185a09070296c6ada4dc1e40cd9aa0b0bd5a9141b2639b4500cce724228342302fc6c3c5b084904d5ff5a68302f1986d0",
-		Address: "aegis.eastmoney.dev",
-	}
-
-	if err := launch.Exec(ctx, testCfg); err != nil {
+	if err := launch.Exec(ctx, config.JSON(*cfg)); err != nil {
 		slog.Error("服务运行错误", slog.Any("error", err))
 	} else {
 		slog.Info("服务停止运行")

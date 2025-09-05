@@ -6,58 +6,85 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 
 	"github.com/xgfone/ship/v5"
 	exprestapi "github.com/xmx/aegis-broker/applet/expose/restapi"
 	srvrestapi "github.com/xmx/aegis-broker/applet/server/restapi"
+	"github.com/xmx/aegis-broker/business"
 	"github.com/xmx/aegis-broker/config"
 	"github.com/xmx/aegis-broker/tunnel/bclient"
 	"github.com/xmx/aegis-common/library/httpx"
+	"github.com/xmx/aegis-common/logger"
 	"github.com/xmx/aegis-common/shipx"
 	"github.com/xmx/aegis-common/validation"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"github.com/xmx/aegis-control/mongodb"
-	expservice "github.com/xmx/aegis-server/applet/expose/service"
 )
 
-func Exec(ctx context.Context, boot *config.Boot) error {
-	valid := validation.New()
-	log := slog.Default()
-	dialCfg := bclient.DialConfig{
-		ID:        boot.ID,
-		Secret:    boot.Secret,
-		Addresses: []string{boot.Address},
+func Exec(ctx context.Context, cld config.Loader) error {
+	consoleOut := logger.NewTint(os.Stdout)
+	logHandler := logger.NewHandler(consoleOut)
+	log := slog.New(logHandler)
+
+	cfg, err := cld.Load(ctx)
+	if err != nil {
+		log.Error("配置加载错误", slog.Any("error", err))
+		return err
 	}
+
+	valid := validation.New()
+	if err = valid.Validate(cfg); err != nil {
+		log.Error("配置验证错误", slog.Any("error", err))
+		return err
+	}
+
+	log.Info("向中心端建立连接中...")
 	srvHandle := httpx.NewAtomicHandler(nil)
-	cli, err := bclient.Open(ctx, dialCfg, srvHandle, log)
+	cli, err := bclient.Open(ctx, cfg, srvHandle, log)
 	if err != nil {
 		return err
 	}
 
+	log.Info("向中心端请求初始配置")
 	dbCfg, err := cli.Config(ctx)
 	if err != nil {
+		log.Error("向中心端请求初始配置错误", slog.Any("error", err))
 		return err
 	}
-	log.Info("配置", slog.Any("config", dbCfg))
 	mongoURI := dbCfg.URI
+	log.Debug("开始连接数据库", slog.Any("mongo_uri", mongoURI))
 	db, err := mongodb.Open(mongoURI)
+	if err != nil {
+		log.Error("数据库连接错误", slog.Any("error", err))
+		return err
+	}
+	log.Info("数据库连接成功")
+
+	repoAll := repository.NewAll(db)
+	brokerBiz := business.NewBroker(repoAll, log)
+	certificateBiz := business.NewCertificate(repoAll, log)
+
+	// 查询自己的配置
+	thisBrk, err := brokerBiz.Get(ctx, cfg.ID)
 	if err != nil {
 		return err
 	}
-	repoAll := repository.NewAll(db)
-	certificateSvc := expservice.NewCertificate(repoAll, log)
 
 	exposeAPIs := []shipx.RouteRegister{
 		exprestapi.NewHealth(),
 	}
 	serverAPIs := []shipx.RouteRegister{
+		srvrestapi.NewCertificate(certificateBiz, log),
 		srvrestapi.NewHealth(),
 	}
 
+	shipLog := logger.NewShip(logHandler, 6)
 	srvSH := ship.Default()
 	srvSH.NotFound = shipx.NotFound
 	srvSH.HandleError = shipx.HandleError
 	srvSH.Validator = valid
+	srvSH.Logger = shipLog
 	srvHandle.Store(srvSH)
 
 	{
@@ -71,6 +98,7 @@ func Exec(ctx context.Context, boot *config.Boot) error {
 	exposeSH.NotFound = shipx.NotFound
 	exposeSH.HandleError = shipx.HandleError
 	exposeSH.Validator = valid
+	exposeSH.Logger = shipLog
 
 	{
 		apiRGB := exposeSH.Group("/api")
@@ -79,11 +107,19 @@ func Exec(ctx context.Context, boot *config.Boot) error {
 		}
 	}
 
+	brkCfg := thisBrk.Config
+	listenAddr := brkCfg.Listen
+	if listenAddr == "" {
+		listenAddr = ":443"
+	}
+
 	tlsCfg := &tls.Config{
-		GetCertificate: certificateSvc.GetCertificate,
+		GetCertificate:     certificateBiz.GetCertificate,
+		NextProtos:         []string{"http/1.1", "h2", "aegis"},
+		InsecureSkipVerify: true,
 	}
 	srv := &http.Server{
-		Addr:      ":9443",
+		Addr:      listenAddr,
 		Handler:   exposeSH,
 		TLSConfig: tlsCfg,
 	}
