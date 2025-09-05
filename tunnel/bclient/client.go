@@ -69,6 +69,7 @@ func Open(parent context.Context, cfg *config.Dial, next http.Handler, log *slog
 
 type Client interface {
 	Config(ctx context.Context) (*Database, error)
+	Close() error
 }
 
 type DialConfig struct {
@@ -105,6 +106,14 @@ func (bc *brokerClient) Config(ctx context.Context) (*Database, error) {
 	}
 
 	return dat, nil
+}
+
+func (bc *brokerClient) Close() error {
+	if mux, _ := bc.mux.LoadMux(); mux != nil {
+		return mux.Close()
+	}
+
+	return nil
 }
 
 func (bc *brokerClient) reconnect() error {

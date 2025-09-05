@@ -20,6 +20,8 @@ import (
 	"github.com/xmx/aegis-common/validation"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"github.com/xmx/aegis-control/mongodb"
+	"github.com/xmx/aegis-control/quick"
+	"golang.org/x/net/quic"
 )
 
 func Exec(ctx context.Context, cld config.Loader) error {
@@ -77,6 +79,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	serverAPIs := []shipx.RouteRegister{
 		srvrestapi.NewCertificate(certificateBiz, log),
 		srvrestapi.NewHealth(),
+		srvrestapi.NewPprof(),
 	}
 
 	shipLog := logger.NewShip(logHandler, 6)
@@ -118,18 +121,29 @@ func Exec(ctx context.Context, cld config.Loader) error {
 		NextProtos:         []string{"http/1.1", "h2", "aegis"},
 		InsecureSkipVerify: true,
 	}
-	srv := &http.Server{
+	httpSrv := &http.Server{
 		Addr:      listenAddr,
 		Handler:   exposeSH,
 		TLSConfig: tlsCfg,
 	}
+	quicSrv := &quick.Server{
+		Addr:    listenAddr,
+		Handler: nil,
+		QUICConfig: &quic.Config{
+			TLSConfig: tlsCfg,
+		},
+	}
+
 	errs := make(chan error)
-	go listenAndServe(errs, srv, log)
+	go listenHTTP(errs, httpSrv, log)
+	go listenQUIC(ctx, errs, quicSrv, log)
 	select {
 	case err = <-errs:
 	case <-ctx.Done():
 	}
-	_ = srv.Close()
+	_ = httpSrv.Close()
+	_ = quicSrv.Close()
+	_ = cli.Close()
 
 	if err != nil {
 		log.Error("程序运行错误", slog.Any("error", err))
@@ -140,7 +154,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	return nil
 }
 
-func listenAndServe(errs chan<- error, srv *http.Server, log *slog.Logger) {
+func listenHTTP(errs chan<- error, srv *http.Server, log *slog.Logger) {
 	lc := new(net.ListenConfig)
 	lc.SetMultipathTCP(true)
 	ln, err := lc.Listen(context.Background(), "tcp", srv.Addr)
@@ -152,4 +166,23 @@ func listenAndServe(errs chan<- error, srv *http.Server, log *slog.Logger) {
 	log.Warn("http 服务监听成功", "listen", laddr)
 
 	errs <- srv.ServeTLS(ln, "", "")
+}
+
+func listenQUIC(ctx context.Context, errs chan<- error, srv *quick.Server, log *slog.Logger) {
+	addr := srv.Addr
+	if addr == "" {
+		addr = ":443"
+	}
+
+	endpoint, err := quic.Listen("udp", addr, srv.QUICConfig)
+	if err != nil {
+		errs <- err
+		return
+	}
+	defer endpoint.Close(context.Background())
+
+	laddr := endpoint.LocalAddr()
+	log.Warn("quic 服务监听成功", "listen", laddr)
+
+	errs <- srv.Serve(ctx, endpoint)
 }
