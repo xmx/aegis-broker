@@ -7,16 +7,18 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/xgfone/ship/v5"
 	exprestapi "github.com/xmx/aegis-broker/applet/expose/restapi"
 	srvrestapi "github.com/xmx/aegis-broker/applet/server/restapi"
 	"github.com/xmx/aegis-broker/business"
+	"github.com/xmx/aegis-broker/client/tunnel"
 	"github.com/xmx/aegis-broker/config"
-	"github.com/xmx/aegis-broker/tunnel/bclient"
 	"github.com/xmx/aegis-common/library/httpx"
 	"github.com/xmx/aegis-common/logger"
 	"github.com/xmx/aegis-common/shipx"
+	"github.com/xmx/aegis-common/transport"
 	"github.com/xmx/aegis-common/validation"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"github.com/xmx/aegis-control/mongodb"
@@ -43,18 +45,30 @@ func Exec(ctx context.Context, cld config.Loader) error {
 
 	log.Info("向中心端建立连接中...")
 	srvHandle := httpx.NewAtomicHandler(nil)
-	cli, err := bclient.Open(ctx, cfg, srvHandle, log)
+	dial := tunnel.DialConfig{
+		ID:        cfg.ID,
+		Secret:    cfg.Secret,
+		Addresses: cfg.Addresses,
+		Handler:   srvHandle,
+		DialConfig: transport.DialConfig{
+			Parent:   ctx,
+			DialMode: transport.ParseMode(cfg.Mode),
+		},
+		Timeout: 5 * time.Second,
+		Logger:  log,
+	}
+	cli, err := dial.Open()
 	if err != nil {
 		return err
 	}
 
 	log.Info("向中心端请求初始配置")
-	dbCfg, err := cli.Config(ctx)
+	initCfg, err := cli.InitialConfig(ctx)
 	if err != nil {
 		log.Error("向中心端请求初始配置错误", slog.Any("error", err))
 		return err
 	}
-	mongoURI := dbCfg.URI
+	mongoURI := initCfg.MongoURI
 	log.Debug("开始连接数据库", slog.Any("mongo_uri", mongoURI))
 	db, err := mongodb.Open(mongoURI)
 	if err != nil {
