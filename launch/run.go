@@ -13,13 +13,16 @@ import (
 	exprestapi "github.com/xmx/aegis-broker/applet/expose/restapi"
 	srvrestapi "github.com/xmx/aegis-broker/applet/server/restapi"
 	"github.com/xmx/aegis-broker/business"
-	"github.com/xmx/aegis-broker/client/tunnel"
+	"github.com/xmx/aegis-broker/channel/gateway"
+	"github.com/xmx/aegis-broker/channel/tundial"
+	"github.com/xmx/aegis-broker/channel/tunnel"
 	"github.com/xmx/aegis-broker/config"
 	"github.com/xmx/aegis-common/library/httpx"
 	"github.com/xmx/aegis-common/logger"
 	"github.com/xmx/aegis-common/shipx"
 	"github.com/xmx/aegis-common/transport"
 	"github.com/xmx/aegis-common/validation"
+	"github.com/xmx/aegis-control/contract/linkhub"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"github.com/xmx/aegis-control/mongodb"
 	"github.com/xmx/aegis-control/quick"
@@ -87,13 +90,19 @@ func Exec(ctx context.Context, cld config.Loader) error {
 		return err
 	}
 
+	hub := linkhub.NewHub(4096)
+	multiDial := tundial.NewDialer(cli, hub)
+	multiTrip := &http.Transport{DialContext: multiDial.DialContext}
+	agtHandler := httpx.NewAtomicHandler(nil)
+	agtGate := gateway.New(thisBrk, repoAll, hub, valid, agtHandler, log)
 	exposeAPIs := []shipx.RouteRegister{
 		exprestapi.NewHealth(),
 	}
 	serverAPIs := []shipx.RouteRegister{
+		srvrestapi.NewAgent(multiTrip),
 		srvrestapi.NewCertificate(certificateBiz, log),
-		srvrestapi.NewHealth(),
 		srvrestapi.NewPprof(),
+		srvrestapi.NewSystem(cfg),
 	}
 
 	shipLog := logger.NewShip(logHandler, 6)
@@ -133,6 +142,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	tlsCfg := &tls.Config{
 		GetCertificate:     certificateBiz.GetCertificate,
 		NextProtos:         []string{"http/1.1", "h2", "aegis"},
+		MinVersion:         tls.VersionTLS13,
 		InsecureSkipVerify: true,
 	}
 	httpSrv := &http.Server{
@@ -142,7 +152,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	}
 	quicSrv := &quick.Server{
 		Addr:    listenAddr,
-		Handler: nil,
+		Handler: agtGate,
 		QUICConfig: &quic.Config{
 			TLSConfig: tlsCfg,
 		},
