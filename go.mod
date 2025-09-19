@@ -5,8 +5,8 @@ go 1.25.1
 require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/xgfone/ship/v5 v5.3.2
-	github.com/xmx/aegis-common v0.0.0-20250919112606-9a86af6fea1d
-	github.com/xmx/aegis-control v0.0.0-20250919113311-faa1d9297e07
+	github.com/xmx/aegis-common v0.0.0-20250919115602-5f974af07133
+	github.com/xmx/aegis-control v0.0.0-20250919120044-6439e27b81f4
 	go.mongodb.org/mongo-driver/v2 v2.3.0
 	golang.org/x/net v0.44.0
 )
