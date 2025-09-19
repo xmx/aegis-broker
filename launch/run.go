@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/xgfone/ship/v5"
+	agtrestapi "github.com/xmx/aegis-broker/applet/agent/restapi"
+	agtservice "github.com/xmx/aegis-broker/applet/agent/service"
 	exprestapi "github.com/xmx/aegis-broker/applet/expose/restapi"
 	expservice "github.com/xmx/aegis-broker/applet/expose/service"
 	srvrestapi "github.com/xmx/aegis-broker/applet/server/restapi"
@@ -49,12 +51,12 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	}
 
 	log.Info("向中心端建立连接中...")
-	srvHandle := httpx.NewAtomicHandler(nil)
+	srvHandler := httpx.NewAtomicHandler(nil)
 	dial := tunnel.DialConfig{
 		ID:        cfg.ID,
 		Secret:    cfg.Secret,
 		Addresses: cfg.Addresses,
-		Handler:   srvHandle,
+		Handler:   srvHandler,
 		DialConfig: transport.DialConfig{
 			Parent:    ctx,
 			Protocols: cfg.Protocols,
@@ -109,6 +111,13 @@ func Exec(ctx context.Context, cld config.Loader) error {
 		shipx.NewHealth(),
 		shipx.NewPprof(),
 	}
+	var agentAPIs []shipx.RouteRegister
+	{
+		systemSvc := agtservice.NewSystem(repoAll, log)
+		agentAPIs = append(agentAPIs,
+			agtrestapi.NewSystem(systemSvc),
+		)
+	}
 
 	shipLog := logger.NewShip(logHandler, 6)
 	srvSH := ship.Default()
@@ -116,7 +125,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	srvSH.HandleError = shipx.HandleErrorWithHost("broker")
 	srvSH.Validator = valid
 	srvSH.Logger = shipLog
-	srvHandle.Store(srvSH)
+	srvHandler.Store(srvSH)
 
 	{
 		apiRGB := srvSH.Group("/api")
@@ -134,6 +143,19 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	{
 		apiRGB := exposeSH.Group("/api")
 		if err = shipx.RegisterRoutes(apiRGB, exposeAPIs); err != nil {
+			return err
+		}
+	}
+
+	agtSH := ship.Default()
+	agtSH.NotFound = shipx.NotFound
+	agtSH.HandleError = shipx.HandleError
+	agtSH.Validator = valid
+	agtSH.Logger = shipLog
+	agtHandler.Store(agtSH)
+	{
+		apiRGB := agtSH.Group("/api")
+		if err = shipx.RegisterRoutes(apiRGB, agentAPIs); err != nil {
 			return err
 		}
 	}
@@ -173,6 +195,11 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	_ = httpSrv.Close()
 	_ = quicSrv.Close()
 	_ = cli.Close()
+	{
+		cctx, ccancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = agentSvc.Reset(cctx)
+		ccancel()
+	}
 
 	if err != nil {
 		log.Error("程序运行错误", slog.Any("error", err))
