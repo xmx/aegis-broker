@@ -1,0 +1,41 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: 编译程序
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装环境
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          check-latest: true
+
+      - name: 编译 Linux 程序
+        run: GOEXPERIMENT=jsonv2 sh build.sh
+
+      - name: 编译 Windows 程序
+        run: |
+          go clean -cache
+          go env -w GOOS=windows
+          GOEXPERIMENT=jsonv2 sh build.sh
+          go env -u GOOS
+
+      - name: 下载程序
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-broker
+          path: aegis-broker-*

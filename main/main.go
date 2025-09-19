@@ -12,6 +12,7 @@ import (
 
 	"github.com/xmx/aegis-broker/config"
 	"github.com/xmx/aegis-broker/launch"
+	"github.com/xmx/aegis-common/banner"
 )
 
 func main() {
@@ -21,7 +22,7 @@ func main() {
 	cfg := set.String("c", "resources/config/application.json", "配置文件")
 	ver := set.Bool("v", false, "打印版本")
 	_ = set.Parse(args[1:])
-	if *ver {
+	if _, _ = banner.ANSI(os.Stdout); *ver {
 		return
 	}
 
