@@ -9,27 +9,31 @@ import (
 	"github.com/xmx/aegis-control/library/httpnet"
 )
 
-type Agent struct {
+type Reverse struct {
 	prx *httputil.ReverseProxy
 }
 
-func NewAgent(trip http.RoundTripper) *Agent {
+func NewReverse(trip http.RoundTripper) *Reverse {
 	prx := httpnet.NewReverse(trip)
-	return &Agent{
+	return &Reverse{
 		prx: prx,
 	}
 }
 
-func (agt *Agent) RegisterRoute(r *ship.RouteGroupBuilder) error {
+func (agt *Reverse) RegisterRoute(r *ship.RouteGroupBuilder) error {
 	r.Route("/reverse/agent/:id/").Any(agt.reverse)
 	r.Route("/reverse/agent/:id/*path").Any(agt.reverse)
 	return nil
 }
 
-func (agt *Agent) reverse(c *ship.Context) error {
+func (agt *Reverse) reverse(c *ship.Context) error {
 	id, pth := c.Param("id"), "/"+c.Param("path")
 	w, r := c.Response(), c.Request()
-	reqURL := transport.NewAgentURL(id, pth)
+	ctx := r.Context()
+	if e := ctx.Err(); e != nil {
+		c.Errorf("context error", "error", e)
+	}
+	reqURL := transport.NewBrokerAgentURL(id, pth)
 	r.URL = reqURL
 	r.Host = reqURL.Host
 

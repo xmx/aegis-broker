@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	Mode      string   `json:"mode"      validate:"omitempty,oneof=auto tcp udp"`
+	Protocols []string `json:"protocols" validate:"omitempty,lte=2,unique,dive,oneof=tcp udp"`
 	ID        string   `json:"id"        validate:"required,lte=100"`
 	Secret    string   `json:"secret"    validate:"required,lte=1000"`
 	Addresses []string `json:"addresses" validate:"lte=100"`

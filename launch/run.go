@@ -11,6 +11,7 @@ import (
 
 	"github.com/xgfone/ship/v5"
 	exprestapi "github.com/xmx/aegis-broker/applet/expose/restapi"
+	expservice "github.com/xmx/aegis-broker/applet/expose/service"
 	srvrestapi "github.com/xmx/aegis-broker/applet/server/restapi"
 	"github.com/xmx/aegis-broker/business"
 	"github.com/xmx/aegis-broker/channel/gateway"
@@ -41,6 +42,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	}
 
 	valid := validation.New()
+	_ = valid.RegisterCustomValidations(validation.Customs())
 	if err = valid.Validate(cfg); err != nil {
 		log.Error("配置验证错误", slog.Any("error", err))
 		return err
@@ -54,8 +56,8 @@ func Exec(ctx context.Context, cld config.Loader) error {
 		Addresses: cfg.Addresses,
 		Handler:   srvHandle,
 		DialConfig: transport.DialConfig{
-			Parent:   ctx,
-			DialMode: transport.ParseMode(cfg.Mode),
+			Parent:    ctx,
+			Protocols: cfg.Protocols,
 		},
 		Timeout: 5 * time.Second,
 		Logger:  log,
@@ -89,6 +91,8 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	if err != nil {
 		return err
 	}
+	agentSvc := expservice.NewAgent(thisBrk, repoAll, log)
+	_ = agentSvc.Reset(ctx)
 
 	hub := linkhub.NewHub(4096)
 	multiDial := tundial.NewDialer(cli, hub)
@@ -96,19 +100,20 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	agtHandler := httpx.NewAtomicHandler(nil)
 	agtGate := gateway.New(thisBrk, repoAll, hub, valid, agtHandler, log)
 	exposeAPIs := []shipx.RouteRegister{
-		exprestapi.NewHealth(),
+		exprestapi.NewTunnel(agtGate),
 	}
 	serverAPIs := []shipx.RouteRegister{
-		srvrestapi.NewAgent(multiTrip),
+		srvrestapi.NewReverse(multiTrip),
 		srvrestapi.NewCertificate(certificateBiz, log),
-		srvrestapi.NewPprof(),
 		srvrestapi.NewSystem(cfg),
+		shipx.NewHealth(),
+		shipx.NewPprof(),
 	}
 
 	shipLog := logger.NewShip(logHandler, 6)
 	srvSH := ship.Default()
 	srvSH.NotFound = shipx.NotFound
-	srvSH.HandleError = shipx.HandleError
+	srvSH.HandleError = shipx.HandleErrorWithHost("broker")
 	srvSH.Validator = valid
 	srvSH.Logger = shipLog
 	srvHandle.Store(srvSH)

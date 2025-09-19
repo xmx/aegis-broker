@@ -79,7 +79,7 @@ func (md *multiDialer) matchAgent(ctx context.Context, address string) (net.Conn
 	if peer == nil {
 		return nil, true, &net.AddrError{
 			Addr: address,
-			Err:  "no route to agent host",
+			Err:  "(broker) no route to agent host",
 		}
 	}
 	mux := peer.Muxer()
