@@ -16,12 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 拉取代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 安装环境
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version-file: go.mod
           check-latest: true
 
       - name: 编译 Linux 程序
@@ -34,7 +34,7 @@ jobs:
           GOEXPERIMENT=jsonv2 sh build.sh
           go env -u GOOS
 
-      - name: 下载程序
+      - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: aegis-broker

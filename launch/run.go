@@ -9,9 +9,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/robfig/cron/v3"
 	"github.com/xgfone/ship/v5"
 	agtrestapi "github.com/xmx/aegis-broker/applet/agent/restapi"
 	agtservice "github.com/xmx/aegis-broker/applet/agent/service"
+	"github.com/xmx/aegis-broker/applet/crontab"
 	exprestapi "github.com/xmx/aegis-broker/applet/expose/restapi"
 	expservice "github.com/xmx/aegis-broker/applet/expose/service"
 	srvrestapi "github.com/xmx/aegis-broker/applet/server/restapi"
@@ -20,6 +22,7 @@ import (
 	"github.com/xmx/aegis-broker/channel/tundial"
 	"github.com/xmx/aegis-broker/channel/tunnel"
 	"github.com/xmx/aegis-broker/config"
+	"github.com/xmx/aegis-common/library/cronv3"
 	"github.com/xmx/aegis-common/library/httpx"
 	"github.com/xmx/aegis-common/logger"
 	"github.com/xmx/aegis-common/shipx"
@@ -49,6 +52,10 @@ func Exec(ctx context.Context, cld config.Loader) error {
 		log.Error("配置验证错误", slog.Any("error", err))
 		return err
 	}
+
+	crond := cronv3.New(ctx, log, cron.WithSeconds())
+	crond.Start()
+	defer crond.Stop()
 
 	log.Info("向中心端建立连接中...")
 	srvHandler := httpx.NewAtomicHandler(nil)
@@ -159,6 +166,8 @@ func Exec(ctx context.Context, cld config.Loader) error {
 			return err
 		}
 	}
+
+	_, _ = crond.AddTask(crontab.NewNetwork(thisBrk.ID, repoAll, log))
 
 	brkCfg := thisBrk.Config
 	listenAddr := brkCfg.Listen
