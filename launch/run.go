@@ -40,7 +40,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	logHandler := logger.NewHandler(consoleOut)
 	log := slog.New(logHandler)
 
-	cfg, err := cld.Load(ctx)
+	hideCfg, err := cld.Load(ctx)
 	if err != nil {
 		log.Error("配置加载错误", slog.Any("error", err))
 		return err
@@ -48,7 +48,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 
 	valid := validation.New()
 	_ = valid.RegisterCustomValidations(validation.Customs())
-	if err = valid.Validate(cfg); err != nil {
+	if err = valid.Validate(hideCfg); err != nil {
 		log.Error("配置验证错误", slog.Any("error", err))
 		return err
 	}
@@ -60,13 +60,13 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	log.Info("向中心端建立连接中...")
 	srvHandler := httpx.NewAtomicHandler(nil)
 	dial := tunnel.DialConfig{
-		ID:        cfg.ID,
-		Secret:    cfg.Secret,
-		Addresses: cfg.Addresses,
+		ID:        hideCfg.ID,
+		Secret:    hideCfg.Secret,
+		Addresses: hideCfg.Addresses,
 		Handler:   srvHandler,
 		DialConfig: transport.DialConfig{
 			Parent:    ctx,
-			Protocols: cfg.Protocols,
+			Protocols: hideCfg.Protocols,
 		},
 		Timeout: 5 * time.Second,
 		Logger:  log,
@@ -96,10 +96,11 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	certificateBiz := business.NewCertificate(repoAll, log)
 
 	// 查询自己的配置
-	thisBrk, err := brokerBiz.Get(ctx, cfg.ID)
+	thisBrk, err := brokerBiz.Get(ctx, hideCfg.ID)
 	if err != nil {
 		return err
 	}
+	bootCfg := thisBrk.Config
 	agentSvc := expservice.NewAgent(thisBrk, repoAll, log)
 	_ = agentSvc.Reset(ctx)
 
@@ -114,7 +115,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	serverAPIs := []shipx.RouteRegister{
 		srvrestapi.NewReverse(multiTrip),
 		srvrestapi.NewCertificate(certificateBiz, log),
-		srvrestapi.NewSystem(cfg),
+		srvrestapi.NewSystem(hideCfg, bootCfg),
 		shipx.NewHealth(),
 		shipx.NewPprof(),
 	}
@@ -169,8 +170,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 
 	_, _ = crond.AddTask(crontab.NewNetwork(thisBrk.ID, repoAll, log))
 
-	brkCfg := thisBrk.Config
-	listenAddr := brkCfg.Listen
+	listenAddr := bootCfg.Server.Addr
 	if listenAddr == "" {
 		listenAddr = ":443"
 	}

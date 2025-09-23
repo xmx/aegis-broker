@@ -4,17 +4,21 @@ import (
 	"net/http"
 
 	"github.com/xgfone/ship/v5"
+	"github.com/xmx/aegis-broker/applet/server/data/response"
 	"github.com/xmx/aegis-broker/config"
+	"github.com/xmx/aegis-control/datalayer/model"
 )
 
-func NewSystem(cfg *config.Config) *System {
+func NewSystem(hide *config.Config, boot model.BrokerConfig) *System {
 	return &System{
-		cfg: cfg,
+		hide: hide,
+		boot: boot,
 	}
 }
 
 type System struct {
-	cfg *config.Config
+	hide *config.Config
+	boot model.BrokerConfig
 }
 
 func (syt *System) RegisterRoute(r *ship.RouteGroupBuilder) error {
@@ -24,7 +28,12 @@ func (syt *System) RegisterRoute(r *ship.RouteGroupBuilder) error {
 }
 
 func (syt *System) config(c *ship.Context) error {
-	return c.JSON(http.StatusOK, syt.cfg)
+	ret := &response.SystemConfig{
+		Hide: syt.hide,
+		Boot: syt.boot,
+	}
+
+	return c.JSON(http.StatusOK, ret)
 }
 
 func (*System) ping(c *ship.Context) error {
