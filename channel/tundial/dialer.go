@@ -10,11 +10,7 @@ import (
 	"github.com/xmx/aegis-control/contract/linkhub"
 )
 
-type Dialer interface {
-	DialContext(ctx context.Context, network, address string) (net.Conn, error)
-}
-
-func NewDialer(cli tunnel.Client, hub linkhub.Huber, dial ...*net.Dialer) Dialer {
+func NewDialer(cli tunnel.Client, hub linkhub.Huber, dial ...*net.Dialer) transport.Dialer {
 	md := &multiDialer{cli: cli, hub: hub}
 	if len(dial) != 0 && dial[0] != nil {
 		md.dia = dial[0]

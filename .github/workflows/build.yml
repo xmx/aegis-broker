@@ -1,7 +1,7 @@
 # This workflow will build a golang project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
 
-name: 编译程序
+name: Build
 
 on:
   workflow_dispatch:
@@ -14,6 +14,8 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    env:
+      GOEXPERIMENT: jsonv2
     steps:
       - name: 拉取代码
         uses: actions/checkout@v5
@@ -24,15 +26,35 @@ jobs:
           go-version-file: go.mod
           check-latest: true
 
-      - name: 编译 Linux 程序
-        run: GOEXPERIMENT=jsonv2 sh build.sh
+      - name: 编译 linux-amd64 程序
+        env:
+          GOOS: linux
+          GOARCH: amd64
+        run: sh build.sh
 
-      - name: 编译 Windows 程序
-        run: |
-          go clean -cache
-          go env -w GOOS=windows
-          GOEXPERIMENT=jsonv2 sh build.sh
-          go env -u GOOS
+      - name: 编译 linux-arm64 程序
+        env:
+          GOOS: linux
+          GOARCH: arm64
+        run: sh build.sh
+
+      - name: 编译 windows 程序
+        env:
+          GOOS: windows
+          GOARCH: amd64
+        run: sh build.sh
+
+      - name: 编译 darwin-amd64 程序
+        env:
+          GOOS: darwin
+          GOARCH: amd64
+        run: sh build.sh
+
+      - name: 编译 darwin-arm64 程序
+        env:
+          GOOS: darwin
+          GOARCH: arm64
+        run: sh build.sh
 
       - name: 上传产物
         uses: actions/upload-artifact@v4

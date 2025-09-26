@@ -115,6 +115,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	serverAPIs := []shipx.RouteRegister{
 		srvrestapi.NewReverse(multiTrip),
 		srvrestapi.NewCertificate(certificateBiz, log),
+		srvrestapi.NewEcho(),
 		srvrestapi.NewSystem(hideCfg, bootCfg),
 		shipx.NewHealth(),
 		shipx.NewPprof(),
