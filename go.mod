@@ -6,8 +6,8 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/xgfone/ship/v5 v5.3.2
-	github.com/xmx/aegis-common v0.0.0-20250925013148-da07a43c1606
-	github.com/xmx/aegis-control v0.0.0-20250923113328-022b384d9fe3
+	github.com/xmx/aegis-common v0.0.0-20250928093816-b90e30f5e517
+	github.com/xmx/aegis-control v0.0.0-20250925021810-364c4ee18de2
 	go.mongodb.org/mongo-driver/v2 v2.3.0
 	golang.org/x/net v0.44.0
 )
@@ -21,7 +21,7 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lmittmann/tint v1.1.2 // indirect
-	github.com/quic-go/quic-go v0.54.0 // indirect
+	github.com/quic-go/quic-go v0.54.1 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
