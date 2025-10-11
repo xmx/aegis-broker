@@ -6,7 +6,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/xgfone/ship/v5 v5.3.2
-	github.com/xmx/aegis-common v0.0.0-20251010060848-f1b5defa45ee
+	github.com/xmx/aegis-common v0.0.0-20251011055325-15895a3f7de7
 	github.com/xmx/aegis-control v0.0.0-20251011062032-2acf07e823ab
 	go.mongodb.org/mongo-driver/v2 v2.3.1
 	golang.org/x/time v0.14.0

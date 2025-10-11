@@ -46,6 +46,8 @@ github.com/xmx/aegis-common v0.0.0-20250928093816-b90e30f5e517 h1:6Z8/TstSntwOYv
 github.com/xmx/aegis-common v0.0.0-20250928093816-b90e30f5e517/go.mod h1:ns61TiYvW1yWm6VeDNEleUMN0aayo0NUnhf7auXkJL8=
 github.com/xmx/aegis-common v0.0.0-20251010060848-f1b5defa45ee h1:wfyteGI0ml8vb7NsXmmt23zyl6DL4RhWl82MGTHqPOQ=
 github.com/xmx/aegis-common v0.0.0-20251010060848-f1b5defa45ee/go.mod h1:Rbi5zIvkolbWmlqP5HFvx4C+MKXEPOI+DYkGlkezEd8=
+github.com/xmx/aegis-common v0.0.0-20251011055325-15895a3f7de7 h1:XLrXI41AtO7AmswtzzOrs03MaSrblSQwrIOBb7ZJcd8=
+github.com/xmx/aegis-common v0.0.0-20251011055325-15895a3f7de7/go.mod h1:Rbi5zIvkolbWmlqP5HFvx4C+MKXEPOI+DYkGlkezEd8=
 github.com/xmx/aegis-control v0.0.0-20250925021810-364c4ee18de2 h1:SjkKDszWMvyT2LPBhxWf1lyCrHeoD2jVuJ+3chDtmu4=
 github.com/xmx/aegis-control v0.0.0-20250925021810-364c4ee18de2/go.mod h1:wGZT5a6rF12KtZLMjQYdHxu8yItp475QtPGzY65l2kc=
 github.com/xmx/aegis-control v0.0.0-20251011062032-2acf07e823ab h1:zzPfiek6ojU8z0UeHVPRYCN2GG4X4Mj281/e9fnziFw=
