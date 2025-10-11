@@ -4,8 +4,8 @@ import (
 	"github.com/xgfone/ship/v5"
 	"github.com/xmx/aegis-broker/applet/agent/service"
 	"github.com/xmx/aegis-common/contract/message"
-	"github.com/xmx/aegis-control/contract/linkhub"
 	"github.com/xmx/aegis-control/datalayer/model"
+	"github.com/xmx/aegis-control/linkhub"
 )
 
 func NewSystem(svc *service.System) *System {
@@ -30,7 +30,7 @@ func (s *System) network(c *ship.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	peer := linkhub.FromContext(ctx)
+	peer, _ := linkhub.FromContext(ctx)
 
 	return s.svc.Network(ctx, req.Data, peer)
 }

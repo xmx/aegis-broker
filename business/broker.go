@@ -30,3 +30,8 @@ func (brk *Broker) Get(ctx context.Context, id string) (*model.Broker, error) {
 
 	return brkRepo.FindByID(ctx, oid)
 }
+
+func (brk *Broker) FindBySecret(ctx context.Context, secret string) (*model.Broker, error) {
+	brkRepo := brk.repo.Broker()
+	return brkRepo.FindOne(ctx, bson.M{"secret": secret})
+}

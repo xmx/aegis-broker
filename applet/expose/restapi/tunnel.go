@@ -1,20 +1,19 @@
 package restapi
 
 import (
-	"log/slog"
-
 	"github.com/gorilla/websocket"
 	"github.com/xgfone/ship/v5"
 	"github.com/xmx/aegis-common/library/wsocket"
-	"github.com/xmx/aegis-common/transport"
+	"github.com/xmx/aegis-common/tunnel/tundial"
+	"github.com/xmx/aegis-common/tunnel/tunutil"
 )
 
 type Tunnel struct {
-	next transport.Handler
+	next tunutil.Handler
 	wsup *websocket.Upgrader
 }
 
-func NewTunnel(next transport.Handler) *Tunnel {
+func NewTunnel(next tunutil.Handler) *Tunnel {
 	return &Tunnel{
 		next: next,
 		wsup: wsocket.NewUpgrade(),
@@ -30,18 +29,17 @@ func (tnl *Tunnel) open(c *ship.Context) error {
 	w, r := c.ResponseWriter(), c.Request()
 	ws, err := tnl.wsup.Upgrade(w, r, nil)
 	if err != nil {
-		return err
-	}
-	conn := ws.NetConn()
-	mux, err := transport.NewSMUX(conn, true)
-	if err != nil {
-		_ = conn.Close()
+		c.Warnf("通道协议升级失败（websocket）", "error", err)
 		return err
 	}
 
-	if err = tnl.next.Handle(mux); err != nil {
-		c.Infof("处理发生错误", slog.Any("error", err))
+	conn := ws.NetConn()
+	mux, err1 := tundial.NewSMUX(conn, nil, true)
+	if err1 != nil {
+		_ = conn.Close()
+		return err1
 	}
+	tnl.next.Handle(mux)
 
 	return nil
 }

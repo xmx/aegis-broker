@@ -18,21 +18,19 @@ import (
 	expservice "github.com/xmx/aegis-broker/applet/expose/service"
 	srvrestapi "github.com/xmx/aegis-broker/applet/server/restapi"
 	"github.com/xmx/aegis-broker/business"
-	"github.com/xmx/aegis-broker/channel/gateway"
-	"github.com/xmx/aegis-broker/channel/tundial"
-	"github.com/xmx/aegis-broker/channel/tunnel"
+	"github.com/xmx/aegis-broker/channel/clientd"
+	"github.com/xmx/aegis-broker/channel/serverd"
 	"github.com/xmx/aegis-broker/config"
 	"github.com/xmx/aegis-common/library/cronv3"
 	"github.com/xmx/aegis-common/library/httpx"
 	"github.com/xmx/aegis-common/logger"
 	"github.com/xmx/aegis-common/shipx"
-	"github.com/xmx/aegis-common/transport"
+	"github.com/xmx/aegis-common/tunnel/tundial"
 	"github.com/xmx/aegis-common/validation"
-	"github.com/xmx/aegis-control/contract/linkhub"
 	"github.com/xmx/aegis-control/datalayer/repository"
+	"github.com/xmx/aegis-control/linkhub"
 	"github.com/xmx/aegis-control/mongodb"
 	"github.com/xmx/aegis-control/quick"
-	"golang.org/x/net/quic"
 )
 
 func Exec(ctx context.Context, cld config.Loader) error {
@@ -59,30 +57,20 @@ func Exec(ctx context.Context, cld config.Loader) error {
 
 	log.Info("向中心端建立连接中...")
 	srvHandler := httpx.NewAtomicHandler(nil)
-	dial := tunnel.DialConfig{
-		ID:        hideCfg.ID,
-		Secret:    hideCfg.Secret,
-		Addresses: hideCfg.Addresses,
-		Handler:   srvHandler,
-		DialConfig: transport.DialConfig{
-			Parent:    ctx,
-			Protocols: hideCfg.Protocols,
-		},
-		Timeout: 5 * time.Second,
-		Logger:  log,
+	dialCfg := tundial.Config{
+		Protocols:  hideCfg.Protocols,
+		Addresses:  hideCfg.Addresses,
+		PerTimeout: 10 * time.Second,
+		Parent:     ctx,
 	}
-	cli, err := dial.Open()
+	clientdOpt := clientd.NewOption().Handler(srvHandler).Logger(log)
+	mux, initialCfg, err := clientd.Open(dialCfg, hideCfg.Secret, clientdOpt)
 	if err != nil {
 		return err
 	}
 
 	log.Info("向中心端请求初始配置")
-	initCfg, err := cli.InitialConfig(ctx)
-	if err != nil {
-		log.Error("向中心端请求初始配置错误", slog.Any("error", err))
-		return err
-	}
-	mongoURI := initCfg.MongoURI
+	mongoURI := initialCfg.Config.URI
 	log.Debug("开始连接数据库", slog.Any("mongo_uri", mongoURI))
 	db, err := mongodb.Open(mongoURI)
 	if err != nil {
@@ -96,24 +84,27 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	certificateBiz := business.NewCertificate(repoAll, log)
 
 	// 查询自己的配置
-	thisBrk, err := brokerBiz.Get(ctx, hideCfg.ID)
+	curBroker, err := brokerBiz.FindBySecret(ctx, hideCfg.Secret)
 	if err != nil {
 		return err
 	}
-	bootCfg := thisBrk.Config
-	agentSvc := expservice.NewAgent(thisBrk, repoAll, log)
+	bootCfg := curBroker.Config
+	agentSvc := expservice.NewAgent(curBroker, repoAll, log)
 	_ = agentSvc.Reset(ctx)
 
 	hub := linkhub.NewHub(4096)
-	multiDial := tundial.NewDialer(cli, hub)
-	multiTrip := &http.Transport{DialContext: multiDial.DialContext}
-	agtHandler := httpx.NewAtomicHandler(nil)
-	agtGate := gateway.New(thisBrk, repoAll, hub, valid, agtHandler, log)
+	//multiDial := tundial.NewDialer(cli, hub)
+	//multiTrip := &http.Transport{DialContext: multiDial.DialContext}
+
+	tunnelInnerHandler := httpx.NewAtomicHandler(nil)
+	serverdOpt := serverd.NewOption().Handler(tunnelInnerHandler).Validator(valid).Logger(log).Huber(hub)
+	tunnelAccept := serverd.New(curBroker, repoAll, serverdOpt)
 	exposeAPIs := []shipx.RouteRegister{
-		exprestapi.NewTunnel(agtGate),
+		exprestapi.NewTunnel(tunnelAccept),
 	}
+
 	serverAPIs := []shipx.RouteRegister{
-		srvrestapi.NewReverse(multiTrip),
+		//srvrestapi.NewReverse(multiTrip),
 		srvrestapi.NewCertificate(certificateBiz, log),
 		srvrestapi.NewEcho(),
 		srvrestapi.NewSystem(hideCfg, bootCfg),
@@ -161,7 +152,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	agtSH.HandleError = shipx.HandleError
 	agtSH.Validator = valid
 	agtSH.Logger = shipLog
-	agtHandler.Store(agtSH)
+	tunnelInnerHandler.Store(agtSH)
 	{
 		apiRGB := agtSH.Group("/api")
 		if err = shipx.RegisterRoutes(apiRGB, agentAPIs); err != nil {
@@ -169,7 +160,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 		}
 	}
 
-	_, _ = crond.AddTask(crontab.NewNetwork(thisBrk.ID, repoAll, log))
+	_, _ = crond.AddTask(crontab.NewNetwork(curBroker, repoAll, log))
 
 	listenAddr := bootCfg.Server.Addr
 	if listenAddr == "" {
@@ -187,24 +178,22 @@ func Exec(ctx context.Context, cld config.Loader) error {
 		Handler:   exposeSH,
 		TLSConfig: tlsCfg,
 	}
-	quicSrv := &quick.Server{
-		Addr:    listenAddr,
-		Handler: agtGate,
-		QUICConfig: &quic.Config{
-			TLSConfig: tlsCfg,
-		},
+	quicSrv := &quick.QUICGo{
+		Addr:      listenAddr,
+		Handler:   tunnelAccept,
+		TLSConfig: tlsCfg,
 	}
 
-	errs := make(chan error)
+	errs := make(chan error, 2)
 	go listenHTTP(errs, httpSrv, log)
-	go listenQUIC(ctx, errs, quicSrv, log)
+	go listenQUIC(ctx, errs, quicSrv)
 	select {
 	case err = <-errs:
 	case <-ctx.Done():
 	}
 	_ = httpSrv.Close()
 	_ = quicSrv.Close()
-	_ = cli.Close()
+	_ = mux.Close()
 	{
 		cctx, ccancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_ = agentSvc.Reset(cctx)
@@ -234,21 +223,6 @@ func listenHTTP(errs chan<- error, srv *http.Server, log *slog.Logger) {
 	errs <- srv.ServeTLS(ln, "", "")
 }
 
-func listenQUIC(ctx context.Context, errs chan<- error, srv *quick.Server, log *slog.Logger) {
-	addr := srv.Addr
-	if addr == "" {
-		addr = ":443"
-	}
-
-	endpoint, err := quic.Listen("udp", addr, srv.QUICConfig)
-	if err != nil {
-		errs <- err
-		return
-	}
-	defer endpoint.Close(context.Background())
-
-	laddr := endpoint.LocalAddr()
-	log.Warn("quic 服务监听成功", "listen", laddr)
-
-	errs <- srv.Serve(ctx, endpoint)
+func listenQUIC(ctx context.Context, errs chan<- error, srv quick.Server) {
+	errs <- srv.ListenAndServe(ctx)
 }

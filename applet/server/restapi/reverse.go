@@ -5,8 +5,6 @@ import (
 	"net/http/httputil"
 
 	"github.com/xgfone/ship/v5"
-	"github.com/xmx/aegis-common/transport"
-	"github.com/xmx/aegis-control/library/httpnet"
 )
 
 type Reverse struct {
@@ -14,10 +12,11 @@ type Reverse struct {
 }
 
 func NewReverse(trip http.RoundTripper) *Reverse {
-	prx := httpnet.NewReverse(trip)
-	return &Reverse{
-		prx: prx,
-	}
+	//prx := httpnet.NewReverse(trip)
+	//return &Reverse{
+	//	prx: prx,
+	//}
+	return &Reverse{}
 }
 
 func (agt *Reverse) RegisterRoute(r *ship.RouteGroupBuilder) error {
@@ -27,17 +26,17 @@ func (agt *Reverse) RegisterRoute(r *ship.RouteGroupBuilder) error {
 }
 
 func (agt *Reverse) reverse(c *ship.Context) error {
-	id, pth := c.Param("id"), "/"+c.Param("path")
-	w, r := c.Response(), c.Request()
-	ctx := r.Context()
-	if e := ctx.Err(); e != nil {
-		c.Errorf("context error", "error", e)
-	}
-	reqURL := transport.NewBrokerAgentURL(id, pth)
-	r.URL = reqURL
-	r.Host = reqURL.Host
-
-	agt.prx.ServeHTTP(w, r)
+	//id, pth := c.Param("id"), "/"+c.Param("path")
+	//w, r := c.Response(), c.Request()
+	//ctx := r.Context()
+	//if e := ctx.Err(); e != nil {
+	//	c.Errorf("context error", "error", e)
+	//}
+	//reqURL := transport.NewBrokerAgentURL(id, pth)
+	//r.URL = reqURL
+	//r.Host = reqURL.Host
+	//
+	//agt.prx.ServeHTTP(w, r)
 
 	return nil
 }

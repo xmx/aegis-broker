@@ -7,23 +7,24 @@ import (
 
 	"github.com/xmx/aegis-common/library/cronv3"
 	"github.com/xmx/aegis-common/system/network"
+	"github.com/xmx/aegis-control/datalayer/model"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-func NewNetwork(thisID bson.ObjectID, repo repository.All, log *slog.Logger) cronv3.Tasker {
+func NewNetwork(cur *model.Broker, repo repository.All, log *slog.Logger) cronv3.Tasker {
 	return &networkCard{
-		thisID: thisID,
-		repo:   repo,
-		log:    log,
+		cur:  cur,
+		repo: repo,
+		log:  log,
 	}
 }
 
 type networkCard struct {
-	thisID bson.ObjectID
-	repo   repository.All
-	log    *slog.Logger
-	last   []*network.Card
+	cur  *model.Broker
+	repo repository.All
+	log  *slog.Logger
+	last network.Cards
 }
 
 func (n *networkCard) Info() cronv3.TaskInfo {
@@ -41,10 +42,14 @@ func (n *networkCard) Call(ctx context.Context) error {
 		return nil
 	}
 
-	n.last = cards
+	curID := n.cur.ID
 	update := bson.M{"$set": bson.M{"networks": cards}}
 	repo := n.repo.Broker()
-	_, err := repo.UpdateByID(ctx, n.thisID, update)
+	if _, err := repo.UpdateByID(ctx, curID, update); err != nil {
+		return err
+	}
 
-	return err
+	n.last = cards
+
+	return nil
 }
