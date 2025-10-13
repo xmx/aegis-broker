@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/xmx/aegis-common/validation"
+	"github.com/xmx/aegis-common/library/validation"
 	"github.com/xmx/aegis-control/linkhub"
 	"golang.org/x/time/rate"
 )

@@ -23,22 +23,31 @@ import (
 	"github.com/xmx/aegis-broker/config"
 	"github.com/xmx/aegis-common/library/cronv3"
 	"github.com/xmx/aegis-common/library/httpx"
+	"github.com/xmx/aegis-common/library/validation"
 	"github.com/xmx/aegis-common/logger"
+	"github.com/xmx/aegis-common/profile"
 	"github.com/xmx/aegis-common/shipx"
 	"github.com/xmx/aegis-common/tunnel/tundial"
-	"github.com/xmx/aegis-common/validation"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"github.com/xmx/aegis-control/linkhub"
 	"github.com/xmx/aegis-control/mongodb"
 	"github.com/xmx/aegis-control/quick"
 )
 
-func Exec(ctx context.Context, cld config.Loader) error {
+func Run(ctx context.Context, cfg string) error {
+	// 2<<22 = 8388608 (8 MiB)
+	opt := profile.NewOption().Limit(2 << 22).ModuleName("aegis/broker/config")
+	crd := profile.NewFile[config.Config](cfg, opt)
+
+	return Exec(ctx, crd)
+}
+
+func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	consoleOut := logger.NewTint(os.Stdout)
 	logHandler := logger.NewHandler(consoleOut)
 	log := slog.New(logHandler)
 
-	hideCfg, err := cld.Load(ctx)
+	hideCfg, err := crd.Read(ctx)
 	if err != nil {
 		log.Error("配置加载错误", slog.Any("error", err))
 		return err
@@ -93,8 +102,8 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	_ = agentSvc.Reset(ctx)
 
 	hub := linkhub.NewHub(4096)
-	//multiDial := tundial.NewDialer(cli, hub)
-	//multiTrip := &http.Transport{DialContext: multiDial.DialContext}
+	// multiDial := tundial.NewDialer(cli, hub)
+	// multiTrip := &http.Transport{DialContext: multiDial.DialContext}
 
 	tunnelInnerHandler := httpx.NewAtomicHandler(nil)
 	serverdOpt := serverd.NewOption().Handler(tunnelInnerHandler).Validator(valid).Logger(log).Huber(hub)
@@ -104,7 +113,7 @@ func Exec(ctx context.Context, cld config.Loader) error {
 	}
 
 	serverAPIs := []shipx.RouteRegister{
-		//srvrestapi.NewReverse(multiTrip),
+		// srvrestapi.NewReverse(multiTrip),
 		srvrestapi.NewCertificate(certificateBiz, log),
 		srvrestapi.NewEcho(),
 		srvrestapi.NewSystem(hideCfg, bootCfg),
