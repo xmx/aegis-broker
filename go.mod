@@ -1,23 +1,29 @@
 module github.com/xmx/aegis-broker
 
-go 1.25.1
+go 1.25.2
 
 require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/xgfone/ship/v5 v5.3.2
-	github.com/xmx/aegis-common v0.0.0-20251011055325-15895a3f7de7
-	github.com/xmx/aegis-control v0.0.0-20251011062032-2acf07e823ab
+	github.com/xmx/aegis-broker v0.0.0-20251013133405-dae5c70459d2
+	github.com/xmx/aegis-common v0.0.0-20251013124854-35a1da585f1a
+	github.com/xmx/aegis-control v0.0.0-20251013130649-e82fcce08189
 	go.mongodb.org/mongo-driver/v2 v2.3.1
 	golang.org/x/time v0.14.0
 )
 
 require (
+	github.com/dlclark/regexp2 v1.11.5 // indirect
+	github.com/evanw/esbuild v0.25.10 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.28.0 // indirect
+	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/golang/snappy v1.0.0 // indirect
+	github.com/google/pprof v0.0.0-20251007162407-5df77e3f7d1d // indirect
+	github.com/grafana/sobek v0.0.0-20250723111835-dd8a13f0d439 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lmittmann/tint v1.1.2 // indirect
@@ -27,7 +33,6 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/xtaci/smux v1.5.35 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
-	go.uber.org/mock v0.6.0 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
 	golang.org/x/mod v0.29.0 // indirect
 	golang.org/x/net v0.46.0 // indirect
