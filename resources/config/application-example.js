@@ -1,4 +1,4 @@
-import config from 'aegis/agent/config'
+import config from 'aegis/broker/config'
 import console from 'console'
 
 const cfg = config.get()
