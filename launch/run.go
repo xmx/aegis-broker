@@ -28,6 +28,7 @@ import (
 	"github.com/xmx/aegis-common/profile"
 	"github.com/xmx/aegis-common/shipx"
 	"github.com/xmx/aegis-common/tunnel/tundial"
+	"github.com/xmx/aegis-common/tunnel/tunutil"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"github.com/xmx/aegis-control/linkhub"
 	"github.com/xmx/aegis-control/mongodb"
@@ -102,8 +103,11 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	_ = agentSvc.Reset(ctx)
 
 	hub := linkhub.NewHub(4096)
-	// multiDial := tundial.NewDialer(cli, hub)
-	// multiTrip := &http.Transport{DialContext: multiDial.DialContext}
+
+	systemDialer := tunutil.DefaultDialer()
+	brokerDialer := linkhub.NewSuffixDialer(hub, tunutil.BrokerHostSuffix)
+	multiDialer := tunutil.NewMatchDialer(systemDialer, brokerDialer)
+	multiTrip := &http.Transport{DialContext: multiDialer.DialContext}
 
 	tunnelInnerHandler := httpx.NewAtomicHandler(nil)
 	serverdOpt := serverd.NewOption().Handler(tunnelInnerHandler).Validator(valid).Logger(log).Huber(hub)
@@ -113,7 +117,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	serverAPIs := []shipx.RouteRegister{
-		// srvrestapi.NewReverse(multiTrip),
+		srvrestapi.NewReverse(multiTrip),
 		srvrestapi.NewCertificate(certificateBiz, log),
 		srvrestapi.NewEcho(),
 		srvrestapi.NewSystem(hideCfg, bootCfg),

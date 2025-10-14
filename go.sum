@@ -54,6 +54,8 @@ github.com/xmx/aegis-broker v0.0.0-20251013133405-dae5c70459d2 h1:YjH2LoyfGepp2A
 github.com/xmx/aegis-broker v0.0.0-20251013133405-dae5c70459d2/go.mod h1:txyEvOnMsIX6Fcm6wGJWmMZ3rpITgb+qon5zWgmlRvE=
 github.com/xmx/aegis-common v0.0.0-20251013124854-35a1da585f1a h1:Rrs+RZ266CnkKYTZmsw0aO1/aJFM+8VlsytINWeE5NI=
 github.com/xmx/aegis-common v0.0.0-20251013124854-35a1da585f1a/go.mod h1:Rbi5zIvkolbWmlqP5HFvx4C+MKXEPOI+DYkGlkezEd8=
+github.com/xmx/aegis-common v0.0.0-20251014111001-9fd22501bf25 h1:hkKwdkvmR9+2j1RIgkOnQIHEBobx6NeHAMEu3TYChFg=
+github.com/xmx/aegis-common v0.0.0-20251014111001-9fd22501bf25/go.mod h1:Rbi5zIvkolbWmlqP5HFvx4C+MKXEPOI+DYkGlkezEd8=
 github.com/xmx/aegis-control v0.0.0-20251013130649-e82fcce08189 h1:eyQlMj0GW81maD1sV9G0wF6BcXEX5SKL10lLRweKDCM=
 github.com/xmx/aegis-control v0.0.0-20251013130649-e82fcce08189/go.mod h1:Qpohlduu54sFehWRes50cdg/3UfRzVLMdP56t4rd63Y=
 github.com/xtaci/smux v1.5.35 h1:RosihGJBeaS8gxOZ17HNxbhONwnqQwNwusHx4+SEGhk=
