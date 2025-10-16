@@ -79,7 +79,7 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 	sig, err := mux.Accept()
 	timer.Stop()
 	if err != nil {
-		as.log().Error("等待客户端建立认证连接出错", "error", err)
+		as.log().Error("等待 agent 建立认证通道出错", "error", err)
 		return nil, nil, false
 	}
 	defer sig.Close()
@@ -90,7 +90,7 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 	req := new(authmesg.AgentToBrokerRequest)
 	if err = tunutil.ReadHead(sig, req); err != nil {
 		attrs = append(attrs, slog.Any("error", err))
-		as.log().Error("读取请求信息错误", attrs...)
+		as.log().Error("读取 agent 请求信息错误", attrs...)
 		return nil, nil, false
 	}
 	attrs = append(attrs, slog.Any("agent_auth_request", req))
@@ -103,19 +103,19 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 	agt, err := as.checkout(req, timeout)
 	if err != nil {
 		attrs = append(attrs, slog.Any("error", err))
-		as.log().Error("查询/新增节点错误", attrs...)
+		as.log().Error("查询/新增 agent 错误", attrs...)
 		_ = as.writeError(sig, http.StatusInternalServerError, err)
 		return nil, nil, false
 	}
 	if agt.Status { // 节点已经在线了
-		as.log().Warn("节点重复上线（数据库检查）", attrs...)
+		as.log().Warn("agent 重复上线（数据库检查）", attrs...)
 		_ = as.writeError(sig, http.StatusConflict, nil)
 		return nil, nil, false
 	}
 
 	peer := linkhub.NewPeer(agt.ID, mux)
 	if !as.opt.huber.Put(peer) {
-		as.log().Warn("节点重复上线（连接池检查）", attrs...)
+		as.log().Warn("agent 重复上线（连接池检查）", attrs...)
 		_ = as.writeError(sig, http.StatusConflict, nil)
 		return nil, nil, false
 	}
@@ -159,7 +159,7 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 
 	ret, err1 := agentRepo.UpdateOne(ctx, filter, update)
 	if err1 == nil && ret.ModifiedCount != 0 {
-		as.log().Info("节点上线成功", attrs...)
+		as.log().Info("agent 上线成功", attrs...)
 		return req, peer, true
 	}
 
@@ -169,7 +169,7 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 	if err1 != nil {
 		attrs = append(attrs, slog.Any("error", err1))
 	}
-	as.log().Error("节点上线失败", attrs...)
+	as.log().Error("agent 上线失败", attrs...)
 
 	return nil, nil, false
 }

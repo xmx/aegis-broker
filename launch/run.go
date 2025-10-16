@@ -22,7 +22,7 @@ import (
 	"github.com/xmx/aegis-broker/channel/serverd"
 	"github.com/xmx/aegis-broker/config"
 	"github.com/xmx/aegis-common/library/cronv3"
-	"github.com/xmx/aegis-common/library/httpx"
+	"github.com/xmx/aegis-common/library/httpkit"
 	"github.com/xmx/aegis-common/library/validation"
 	"github.com/xmx/aegis-common/logger"
 	"github.com/xmx/aegis-common/profile"
@@ -66,7 +66,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	defer crond.Stop()
 
 	log.Info("向中心端建立连接中...")
-	srvHandler := httpx.NewAtomicHandler(nil)
+	srvHandler := httpkit.NewAtomicHandler(nil)
 	dialCfg := tundial.Config{
 		Protocols:  hideCfg.Protocols,
 		Addresses:  hideCfg.Addresses,
@@ -98,6 +98,8 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	if err != nil {
 		return err
 	}
+
+	brokerID := curBroker.ID
 	bootCfg := curBroker.Config
 	agentSvc := expservice.NewAgent(curBroker, repoAll, log)
 	_ = agentSvc.Reset(ctx)
@@ -105,11 +107,12 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	hub := linkhub.NewHub(4096)
 
 	systemDialer := tunutil.DefaultDialer()
-	brokerDialer := linkhub.NewSuffixDialer(hub, tunutil.BrokerHostSuffix)
-	multiDialer := tunutil.NewMatchDialer(systemDialer, brokerDialer)
-	multiTrip := &http.Transport{DialContext: multiDialer.DialContext}
+	muxDialer := tunutil.NewMuxDialer(mux)
+	serverDialer := tunutil.NewHostMatchDialer(tunutil.ServerHost, muxDialer)
+	agentDialer := linkhub.NewSuffixDialer(hub, tunutil.AgentHostSuffix)
+	multiDialer := tunutil.NewMatchDialer(systemDialer, agentDialer, serverDialer)
 
-	tunnelInnerHandler := httpx.NewAtomicHandler(nil)
+	tunnelInnerHandler := httpkit.NewAtomicHandler(nil)
 	serverdOpt := serverd.NewOption().Handler(tunnelInnerHandler).Validator(valid).Logger(log).Huber(hub)
 	tunnelAccept := serverd.New(curBroker, repoAll, serverdOpt)
 	exposeAPIs := []shipx.RouteRegister{
@@ -117,7 +120,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	serverAPIs := []shipx.RouteRegister{
-		srvrestapi.NewReverse(multiTrip),
+		srvrestapi.NewReverse(multiDialer),
 		srvrestapi.NewCertificate(certificateBiz, log),
 		srvrestapi.NewEcho(),
 		srvrestapi.NewSystem(hideCfg, bootCfg),
@@ -173,7 +176,13 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		}
 	}
 
-	_, _ = crond.AddTask(crontab.NewNetwork(curBroker, repoAll, log))
+	cronTasks := []cronv3.Tasker{
+		crontab.NewNetwork(brokerID, repoAll),
+		crontab.NewTransmit(brokerID, mux, hub, repoAll),
+	}
+	for _, task := range cronTasks {
+		_, _ = crond.AddTask(task)
+	}
 
 	listenAddr := bootCfg.Server.Addr
 	if listenAddr == "" {

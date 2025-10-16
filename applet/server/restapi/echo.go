@@ -1,16 +1,14 @@
 package restapi
 
 import (
-	"fmt"
-
 	"github.com/gorilla/websocket"
 	"github.com/xgfone/ship/v5"
-	"github.com/xmx/aegis-common/library/wsocket"
+	"github.com/xmx/aegis-common/library/httpkit"
 )
 
 func NewEcho() *Echo {
 	return &Echo{
-		wsu: wsocket.NewUpgrade(),
+		wsu: httpkit.NewWebsocketUpgrader(),
 	}
 }
 
@@ -28,24 +26,26 @@ func (ech *Echo) chat(c *ship.Context) error {
 	w, r := c.Response(), c.Request()
 	cli, err := ech.wsu.Upgrade(w, r, nil)
 	if err != nil {
+		c.Errorf("websocket 升级失败", "error", err)
 		return nil
 	}
 	defer cli.Close()
 
-	conn := cli.NetConn()
-	fmt.Println(conn)
+	c.Infof("websocket 升级成功")
 
 	for {
-		mt, msg, err := cli.ReadMessage()
-		if err != nil {
+		mt, msg, exx := cli.ReadMessage()
+		if exx != nil {
+			c.Errorf("读取消息错误", "error", exx)
 			break
 		}
-		c.Infof("[broker message] >>> ", "message", string(msg))
-		msg = append(msg, []byte(" echo 测试\n")...)
+		c.Infof("[broker receive message] >>> ", "message", string(msg))
+		msg = append(msg, []byte(" 响应测试")...)
 		if err = cli.WriteMessage(mt, msg); err != nil {
 			break
 		}
 	}
+	c.Warnf("websocket disconnect")
 
 	return nil
 }

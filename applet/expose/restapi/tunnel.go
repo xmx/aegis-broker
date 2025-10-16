@@ -3,7 +3,7 @@ package restapi
 import (
 	"github.com/gorilla/websocket"
 	"github.com/xgfone/ship/v5"
-	"github.com/xmx/aegis-common/library/wsocket"
+	"github.com/xmx/aegis-common/library/httpkit"
 	"github.com/xmx/aegis-common/tunnel/tundial"
 	"github.com/xmx/aegis-common/tunnel/tunutil"
 )
@@ -16,7 +16,7 @@ type Tunnel struct {
 func NewTunnel(next tunutil.Handler) *Tunnel {
 	return &Tunnel{
 		next: next,
-		wsup: wsocket.NewUpgrade(),
+		wsup: httpkit.NewWebsocketUpgrader(),
 	}
 }
 
