@@ -69,7 +69,7 @@ func (t *transmit) agents(ctx context.Context) []error {
 
 	var errs []error
 	mods := make([]mongo.WriteModel, 0, batch)
-	for _, p := range t.hub.All() {
+	for _, p := range t.hub.Peers() {
 		id := p.ID()
 		mux := p.Muxer()
 		rx, tx := mux.Transferred()

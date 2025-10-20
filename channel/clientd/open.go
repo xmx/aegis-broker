@@ -153,7 +153,7 @@ func (bc *brokerClient) serve(mux tundial.Muxer) {
 			break
 		}
 
-		bc.mux.Store(mux)
+		bc.mux.Swap(mux)
 	}
 }
 

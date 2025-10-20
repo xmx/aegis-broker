@@ -50,10 +50,10 @@ github.com/xdg-go/stringprep v1.0.4 h1:XLI/Ng3O1Atzq0oBs3TWm+5ZVgkq2aqdlvP9JtoZ6
 github.com/xdg-go/stringprep v1.0.4/go.mod h1:mPGuuIYwz7CmR2bT9j4GbQqutWS1zV24gijq1dTyGkM=
 github.com/xgfone/ship/v5 v5.3.2 h1:PFFNyCTT8psAfeizDexFX33SgFJpVikPuSMcjYxqGJA=
 github.com/xgfone/ship/v5 v5.3.2/go.mod h1:mGI+65lLL3kaOseMkWUYgy+OFl27WV2LY1NSsecu/9g=
-github.com/xmx/aegis-common v0.0.0-20251016032132-0a3791176b66 h1:7/d5O4czlgmrCPZ2Hsd+JsuQhJxJm+8iUOz4iZjz70g=
-github.com/xmx/aegis-common v0.0.0-20251016032132-0a3791176b66/go.mod h1:mdssQMCD0dbZ8KJWoghDfgeXrIOOoJItqwE4RUajM+4=
-github.com/xmx/aegis-control v0.0.0-20251016054625-024e1628d4df h1:bWXV55hl656MabtHupuv14Y1sjBrGgJE57mmASIICjQ=
-github.com/xmx/aegis-control v0.0.0-20251016054625-024e1628d4df/go.mod h1:sAHzxLzzhQnExFl2MIcHfEzSlwG+YFYywzg/mgRpL0I=
+github.com/xmx/aegis-common v0.0.0-20251017032802-3d607ad318c5 h1:z4h3L/V5zzLlnBW0hjH+cphyh5DvWxtQixyQ8+noXI4=
+github.com/xmx/aegis-common v0.0.0-20251017032802-3d607ad318c5/go.mod h1:mdssQMCD0dbZ8KJWoghDfgeXrIOOoJItqwE4RUajM+4=
+github.com/xmx/aegis-control v0.0.0-20251020081556-2ff36507fa2f h1:FIaO9mErPH+DX2HXwd1s3Vkj4x+M3xZdgRad0/oIOHI=
+github.com/xmx/aegis-control v0.0.0-20251020081556-2ff36507fa2f/go.mod h1:eiDhRej491wblvdPAcQq62ef/pJ+NXVFamsWZzDHPIU=
 github.com/xtaci/smux v1.5.35 h1:RosihGJBeaS8gxOZ17HNxbhONwnqQwNwusHx4+SEGhk=
 github.com/xtaci/smux v1.5.35/go.mod h1:OMlQbT5vcgl2gb49mFkYo6SMf+zP3rcjcwQz7ZU7IGY=
 github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 h1:ilQV1hzziu+LLM3zUTJ0trRztfwgjqKnBWNtSRkbmwM=

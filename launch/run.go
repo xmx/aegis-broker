@@ -66,7 +66,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	defer crond.Stop()
 
 	log.Info("向中心端建立连接中...")
-	srvHandler := httpkit.NewAtomicHandler(nil)
+	srvHandler := httpkit.NewHandler()
 	dialCfg := tundial.Config{
 		Protocols:  hideCfg.Protocols,
 		Addresses:  hideCfg.Addresses,
@@ -112,7 +112,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	agentDialer := linkhub.NewSuffixDialer(hub, tunutil.AgentHostSuffix)
 	multiDialer := tunutil.NewMatchDialer(systemDialer, agentDialer, serverDialer)
 
-	tunnelInnerHandler := httpkit.NewAtomicHandler(nil)
+	tunnelInnerHandler := httpkit.NewHandler()
 	serverdOpt := serverd.NewOption().Handler(tunnelInnerHandler).Validator(valid).Logger(log).Huber(hub)
 	tunnelAccept := serverd.New(curBroker, repoAll, serverdOpt)
 	exposeAPIs := []shipx.RouteRegister{
