@@ -101,8 +101,8 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 
 	brokerID := curBroker.ID
 	bootCfg := curBroker.Config
-	agentSvc := expservice.NewAgent(curBroker, repoAll, log)
-	_ = agentSvc.Reset(ctx)
+	agentSvc := expservice.NewAgent(repoAll, log)
+	_ = agentSvc.Reset(ctx, curBroker.ID)
 
 	hub := linkhub.NewHub(4096)
 
@@ -218,7 +218,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	_ = mux.Close()
 	{
 		cctx, ccancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_ = agentSvc.Reset(cctx)
+		_ = agentSvc.Reset(cctx, curBroker.ID)
 		ccancel()
 	}
 

@@ -34,7 +34,7 @@ func (t *transmit) Info() cronv3.TaskInfo {
 	return cronv3.TaskInfo{
 		Name:      "记录通道传输字节数",
 		Timeout:   10 * time.Minute,
-		CronSched: cronv3.NewInterval(time.Minute),
+		CronSched: cronv3.NewInterval(10 * time.Second),
 	}
 }
 
@@ -51,11 +51,10 @@ func (t *transmit) Call(ctx context.Context) error {
 }
 
 func (t *transmit) broker(ctx context.Context) error {
-	// 在 broker 端统计 agent 的传输数据，rx tx 要互换
 	rx, tx := t.mux.Transferred()
 	update := bson.M{"$set": bson.M{
-		"tunnel_stat.receive_bytes":  tx,
-		"tunnel_stat.transmit_bytes": rx,
+		"tunnel_stat.receive_bytes":  rx,
+		"tunnel_stat.transmit_bytes": tx,
 	}}
 
 	repo := t.repo.Broker()
@@ -73,9 +72,10 @@ func (t *transmit) agents(ctx context.Context) []error {
 		id := p.ID()
 		mux := p.Muxer()
 		rx, tx := mux.Transferred()
+		// 在 broker 端统计 agent 的传输数据，rx tx 要互换
 		update := bson.M{"$set": bson.M{
-			"tunnel_stat.receive_bytes":  rx,
-			"tunnel_stat.transmit_bytes": tx,
+			"tunnel_stat.receive_bytes":  tx,
+			"tunnel_stat.transmit_bytes": rx,
 		}}
 
 		mod := mongo.NewUpdateOneModel().

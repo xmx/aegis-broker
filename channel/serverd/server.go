@@ -149,8 +149,12 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 		Username:   req.Username,
 		UID:        req.UID,
 	}
+	point := &model.AgentConnectedBroker{
+		ID:   as.cur.ID,
+		Name: as.cur.Name,
+	}
 	update := bson.M{"$set": bson.M{
-		"status": true, "tunnel_stat": tunStat, "execute_stat": exeStat,
+		"status": true, "tunnel_stat": tunStat, "execute_stat": exeStat, "broker": point,
 	}}
 	filter := bson.M{"_id": agtID, "status": false}
 	agentRepo := as.repo.Agent()
