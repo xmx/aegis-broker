@@ -6,8 +6,8 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/xgfone/ship/v5 v5.3.2
-	github.com/xmx/aegis-common v0.0.0-20251017032802-3d607ad318c5
-	github.com/xmx/aegis-control v0.0.0-20251020081556-2ff36507fa2f
+	github.com/xmx/aegis-common v0.0.0-20251028013937-739baf3e5f1c
+	github.com/xmx/aegis-control v0.0.0-20251028021524-184e90bc0e67
 	go.mongodb.org/mongo-driver/v2 v2.3.1
 	golang.org/x/time v0.14.0
 )
@@ -22,8 +22,8 @@ require (
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/pprof v0.0.0-20251007162407-5df77e3f7d1d // indirect
-	github.com/grafana/sobek v0.0.0-20250723111835-dd8a13f0d439 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/grafana/sobek v0.0.0-20251027085606-10d992055e22 // indirect
+	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lmittmann/tint v1.1.2 // indirect
 	github.com/quic-go/quic-go v0.55.0 // indirect
