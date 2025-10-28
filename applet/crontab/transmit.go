@@ -78,8 +78,12 @@ func (t *transmit) agents(ctx context.Context) []error {
 			"tunnel_stat.transmit_bytes": rx,
 		}}
 
+		filter := bson.D{
+			{Key: "_id", Value: id},
+			{Key: "status", Value: true},
+		}
 		mod := mongo.NewUpdateOneModel().
-			SetFilter(bson.M{"_id": id}).
+			SetFilter(filter).
 			SetUpdate(update)
 		mods = append(mods, mod)
 
