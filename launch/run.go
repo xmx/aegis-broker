@@ -36,19 +36,16 @@ import (
 )
 
 func Run(ctx context.Context, cfg string) error {
-	// 2<<22 = 8388608 (8 MiB)
-	opt := profile.NewOption().Limit(2 << 22).ModuleName("aegis/broker/config")
-	crd := profile.NewFile[config.Config](cfg, opt)
-
-	return Exec(ctx, crd)
+	cfr := profile.File[config.Config](cfg)
+	return Exec(ctx, cfr)
 }
 
 func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
-	consoleOut := logger.NewTint(os.Stdout)
+	consoleOut := logger.NewTint(os.Stdout, nil)
 	logHandler := logger.NewHandler(consoleOut)
 	log := slog.New(logHandler)
 
-	hideCfg, err := crd.Read(ctx)
+	hideCfg, err := crd.Read()
 	if err != nil {
 		log.Error("配置加载错误", slog.Any("error", err))
 		return err
