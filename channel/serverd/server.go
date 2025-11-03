@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/xmx/aegis-common/contract/authmesg"
 	"github.com/xmx/aegis-common/options"
 	"github.com/xmx/aegis-common/tunnel/tundial"
 	"github.com/xmx/aegis-common/tunnel/tunutil"
@@ -21,13 +20,8 @@ import (
 )
 
 func New(cur *model.Broker, repo repository.All, opts ...options.Lister[option]) tunutil.Handler {
+	opts = append(opts, fallbackOptions())
 	opt := options.Eval[option](opts...)
-	if opt.huber == nil {
-		opt.huber = linkhub.NewHub(4096)
-	}
-	if opt.parent == nil {
-		opt.parent = context.Background()
-	}
 
 	return &agentServer{
 		repo: repo,
@@ -45,7 +39,7 @@ type agentServer struct {
 func (as *agentServer) Handle(mux tundial.Muxer) {
 	defer mux.Close()
 
-	if !as.allow() {
+	if !as.opt.allow() {
 		as.log().Warn("限流器抑制 agent 上线")
 		return
 	}
@@ -63,13 +57,12 @@ func (as *agentServer) Handle(mux tundial.Muxer) {
 
 // authentication 节点认证。
 // 客户端主动建立一条虚拟子流连接用于交换认证信息，认证后改子流关闭，后续子流即为业务流。
-func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) (*authmesg.AgentToBrokerRequest, linkhub.Peer, bool) {
+func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) (*authRequest, linkhub.Peer, bool) {
 	protocol, subprotocol := mux.Protocol()
-	localAddr := mux.Addr().String()
-	remoteAddr := mux.RemoteAddr().String()
+	laddr, raddr := mux.Addr(), mux.RemoteAddr()
 	attrs := []any{
 		slog.String("protocol", protocol), slog.String("subprotocol", subprotocol),
-		slog.String("local_addr", localAddr), slog.String("remote_addr", remoteAddr),
+		slog.Any("local_addr", laddr), slog.Any("remote_addr", raddr),
 	}
 
 	// 设置超时主动断开，防止恶意客户端一直不建立认证连接。
@@ -87,14 +80,14 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 	// 读取数据
 	now := time.Now()
 	_ = sig.SetDeadline(now.Add(timeout))
-	req := new(authmesg.AgentToBrokerRequest)
-	if err = tunutil.ReadHead(sig, req); err != nil {
+	req := new(authRequest)
+	if err = tunutil.ReadAuth(sig, req); err != nil {
 		attrs = append(attrs, slog.Any("error", err))
 		as.log().Error("读取 agent 请求信息错误", attrs...)
 		return nil, nil, false
 	}
-	attrs = append(attrs, slog.Any("agent_auth_request", req))
-	if err = as.validate(req); err != nil {
+	attrs = append(attrs, slog.Any("auth_request", req))
+	if err = as.opt.valid(req); err != nil {
 		attrs = append(attrs, slog.Any("error", err))
 		as.log().Error("读取请求信息校验错误", attrs...)
 		_ = as.writeError(sig, http.StatusBadRequest, err)
@@ -135,8 +128,8 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 		KeepaliveAt: now,
 		Protocol:    protocol,
 		Subprotocol: subprotocol,
-		LocalAddr:   mux.Addr().String(),
-		RemoteAddr:  mux.RemoteAddr().String(),
+		LocalAddr:   laddr.String(),
+		RemoteAddr:  raddr.String(),
 	}
 	exeStat := &model.ExecuteStat{
 		Goos:       req.Goos,
@@ -147,7 +140,6 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 		Workdir:    req.Workdir,
 		Executable: req.Executable,
 		Username:   req.Username,
-		UID:        req.UID,
 	}
 	point := &model.AgentConnectedBroker{
 		ID:   as.cur.ID,
@@ -179,7 +171,7 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 }
 
 // checkout 获得 agent 节点的信息，如果不存在自动创建。
-func (as *agentServer) checkout(req *authmesg.AgentToBrokerRequest, timeout time.Duration) (*model.Agent, error) {
+func (as *agentServer) checkout(req *authRequest, timeout time.Duration) (*model.Agent, error) {
 	machineID := req.MachineID
 	agentRepo := as.repo.Agent()
 
@@ -253,34 +245,16 @@ func (as *agentServer) getServer(p linkhub.Peer) *http.Server {
 	return srv
 }
 
-func (as *agentServer) validate(req *authmesg.AgentToBrokerRequest) error {
-	if v := as.opt.valid; v != nil {
-		return v.Validate(req)
-	}
-
-	return nil
-}
-
-// allow 做简单的并发限制，在 broker 重启时，会导致大批量的 agent 重连，
-// agent 上线的各种判断与状态修改是耗资源操作，可以通过限流器抑制。
-func (as *agentServer) allow() bool {
-	if limit := as.opt.limit; limit != nil {
-		return limit.Allow()
-	}
-
-	return true
-}
-
 func (as *agentServer) writeError(w io.Writer, code int, err error) error {
-	resp := &authmesg.BrokerToAgentResponse{Code: code}
+	resp := &authResponse{Code: code}
 	if err != nil {
 		resp.Message = err.Error()
 	}
 
-	return tunutil.WriteHead(w, resp)
+	return tunutil.WriteAuth(w, resp)
 }
 
 func (as *agentServer) writeSucceed(w io.Writer) error {
-	resp := &authmesg.BrokerToAgentResponse{Code: http.StatusAccepted}
-	return tunutil.WriteHead(w, resp)
+	resp := &authResponse{Code: http.StatusAccepted}
+	return tunutil.WriteAuth(w, resp)
 }

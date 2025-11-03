@@ -2,10 +2,8 @@ package clientd
 
 import (
 	"context"
-	"encoding/json/v2"
 	"log/slog"
 	"net"
-	"net/http"
 	"os"
 	"os/user"
 	"runtime"
@@ -15,37 +13,36 @@ import (
 	"github.com/xmx/aegis-common/options"
 	"github.com/xmx/aegis-common/tunnel/tundial"
 	"github.com/xmx/aegis-common/tunnel/tunutil"
-	"github.com/xmx/aegis-control/contract/authmesg"
 )
 
-func Open(cfg tundial.Config, secret string, opts ...options.Lister[option]) (tundial.Muxer, *authmesg.ServerToBrokerResponse, error) {
+func Open(cfg tundial.Config, secret string, opts ...options.Lister[option]) (tundial.Muxer, AuthConfig, error) {
 	if cfg.Parent == nil {
 		cfg.Parent = context.Background()
 	}
+	opts = append(opts, fallbackOptions())
 	opt := options.Eval(opts...)
 
-	ac := &brokerClient{cfg: cfg, opt: opt, secret: secret}
-	mux, res, err := ac.opens()
+	mux := new(safeMuxer)
+	ac := &brokerClient{cfg: cfg, opt: opt, mux: mux, secret: secret}
+	authCfg, err := ac.opens()
 	if err != nil {
-		return nil, nil, err
+		return nil, authCfg, err
 	}
 
-	amux := tundial.MakeAtomic(mux)
-	ac.mux = amux
 	go ac.serve(mux)
 
-	return amux, res, nil
+	return mux, authCfg, nil
 }
 
 type brokerClient struct {
 	cfg    tundial.Config
 	opt    option
-	mux    tundial.AtomicMuxer
+	mux    *safeMuxer
 	secret string
 }
 
-func (bc *brokerClient) opens() (tundial.Muxer, *authmesg.ServerToBrokerResponse, error) {
-	req := &authmesg.BrokerToServerRequest{
+func (bc *brokerClient) opens() (AuthConfig, error) {
+	req := &authRequest{
 		Secret: bc.secret,
 		Goos:   runtime.GOOS,
 		Goarch: runtime.GOARCH,
@@ -57,63 +54,66 @@ func (bc *brokerClient) opens() (tundial.Muxer, *authmesg.ServerToBrokerResponse
 	req.Hostname, _ = os.Hostname()
 	if cu, _ := user.Current(); cu != nil {
 		req.Username = cu.Username
-		req.UID = cu.Uid
 	}
 
-	var reties int
-	startedAt := time.Now()
-	for {
-		reties++ // 连接次数累加
+	var fails int
+	timeout := bc.cfg.PerTimeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
 
-		mux, res, err := bc.open(req)
-		if err == nil && res.Succeed() {
-			return mux, res, nil
+	for {
+		mux, res, err := bc.open(req, timeout)
+		if err == nil {
+			bc.mux.store(mux)
+			return res.Config, nil
 		}
 
-		sleep := bc.backoff(time.Since(startedAt), reties)
-		bc.log().Warn("等待重连", "reties", reties, "sleep", sleep, "error", err)
-		if err = timex.Sleep(bc.cfg.Parent, sleep); err != nil {
+		fails++
+		wait := bc.waitTime(fails)
+		bc.log().Warn("等待重连", "fails", fails, "error", err)
+		if err = timex.Sleep(bc.cfg.Parent, wait); err != nil {
 			bc.log().Error("不满足继续重试连接的条件", "error", err)
-			return nil, nil, err
+			return AuthConfig{}, err
 		}
 	}
 }
 
-func (bc *brokerClient) open(req *authmesg.BrokerToServerRequest) (tundial.Muxer, *authmesg.ServerToBrokerResponse, error) {
+func (bc *brokerClient) open(req *authRequest, timeout time.Duration) (tundial.Muxer, *authResponse, error) {
 	mux, err := tundial.Open(bc.cfg)
 	if err != nil {
 		bc.log().Info("基础网络连接失败", "error", err)
 		return nil, nil, err
 	}
 
+	laddr, raddr := mux.Addr(), mux.RemoteAddr()
 	protocol, subprotocol := mux.Protocol()
 	attrs := []any{
-		slog.Any("local_addr", mux.Addr()),
-		slog.Any("remote_addr", mux.RemoteAddr()),
+		slog.Any("local_addr", laddr),
+		slog.Any("remote_addr", raddr),
 		slog.Any("protocol", protocol),
 		slog.Any("subprotocol", subprotocol),
 	}
 	bc.log().Info("基础网络连接成功", attrs...)
 
-	res, err1 := bc.authentication(mux, req, time.Minute)
+	req.Inet = raddr.String()
+	res, err1 := bc.authentication(mux, req, timeout)
 	if err1 != nil {
+		_ = mux.Close()
 		attrs = append(attrs, slog.Any("error", err1))
+		return nil, nil, err1
 	}
-	if res != nil {
-		attrs = append(attrs, slog.Any("auth_response", res))
-	}
-	if err1 == nil && res != nil && res.Succeed() {
-		bc.log().Info("通道连接认证成功", attrs...)
-		return mux, res, nil
+	if err = res.checkError(); err != nil {
+		_ = mux.Close()
+		attrs = append(attrs, slog.Any("error", err))
+		bc.log().Warn("基础网络连接成功但认证失败", attrs...)
+		return nil, res, err
 	}
 
-	_ = mux.Close() // 关闭连接
-	bc.log().Warn("基础网络连接成功但认证失败", attrs...)
-
-	return nil, res, err1
+	return mux, res, nil
 }
 
-func (bc *brokerClient) authentication(mux tundial.Muxer, req *authmesg.BrokerToServerRequest, timeout time.Duration) (*authmesg.ServerToBrokerResponse, error) {
+func (bc *brokerClient) authentication(mux tundial.Muxer, req *authRequest, timeout time.Duration) (*authResponse, error) {
 	ctx, cancel := context.WithTimeout(bc.cfg.Parent, timeout)
 	defer cancel()
 
@@ -126,74 +126,57 @@ func (bc *brokerClient) authentication(mux tundial.Muxer, req *authmesg.BrokerTo
 
 	now := time.Now()
 	_ = conn.SetDeadline(now.Add(timeout))
-	if err = tunutil.WriteHead(conn, req); err != nil {
+	if err = tunutil.WriteAuth(conn, req); err != nil {
 		return nil, err
 	}
-	resp := new(authmesg.ServerToBrokerResponse)
-	err = tunutil.ReadHead(conn, resp)
+	resp := new(authResponse)
+	if err = tunutil.ReadAuth(conn, resp); err != nil {
+		return nil, err
+	}
 
-	return resp, err
+	return resp, nil
 }
 
 func (bc *brokerClient) serve(mux tundial.Muxer) {
-	srv := bc.opt.server
-	if srv == nil {
-		srv = &http.Server{Handler: http.NotFoundHandler()}
-	}
-
-	const sleep = 2 * time.Second
 	for {
+		srv := bc.opt.server
 		err := srv.Serve(mux)
 		_ = mux.Close()
 
-		bc.log().Warn("broker 通道掉线了", "error", err, "sleep", sleep)
-		ctx := bc.cfg.Parent
-		_ = timex.Sleep(ctx, sleep)
-		if mux, _, err = bc.opens(); err != nil {
+		bc.log().Warn("broker 通道掉线了", "error", err)
+		if _, err = bc.opens(); err != nil {
 			break
 		}
-
-		bc.mux.Swap(mux)
 	}
 }
 
-func (*brokerClient) writeAuthRequest(c net.Conn, v any) error {
-	return json.MarshalWrite(c, v)
-}
-
-func (*brokerClient) readAuthResponse(c net.Conn) (*authResponse, error) {
-	res := new(authResponse)
-	if err := json.UnmarshalRead(c, res); err != nil {
-		return nil, err
-	}
-
-	return res, nil
-}
-
-// backoff 通过持续连接耗费的时间和次数，计算出一个合理的重试时间。
-func (*brokerClient) backoff(elapsed time.Duration, reties int) time.Duration {
-	if reties < 60 {
+// waitTime 通过持续次数，计算出一个合理的重试时间。
+func (*brokerClient) waitTime(fails int) time.Duration {
+	if fails <= 100 {
 		return 3 * time.Second
-	} else if reties < 200 {
+	} else if fails <= 300 {
 		return 10 * time.Second
-	} else if reties < 500 {
-		return 20 * time.Second
-	} else if reties < 1000 {
-		return time.Minute
+	} else if fails <= 500 {
+		return 30 * time.Second
 	}
 
-	const mouth = 30 * 24 * time.Hour
-	if elapsed < mouth {
-		return time.Minute
-	}
-
-	return 10 * time.Minute
+	return time.Minute
 }
-
 func (bc *brokerClient) log() *slog.Logger {
 	if l := bc.opt.logger; l != nil {
 		return l
 	}
 
 	return slog.Default()
+}
+
+func (*brokerClient) checkIP(a net.Addr) net.IP {
+	switch v := a.(type) {
+	case *net.TCPAddr:
+		return v.IP
+	case *net.UDPAddr:
+		return v.IP
+	}
+
+	return net.IPv4zero
 }

@@ -77,7 +77,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	log.Info("向中心端请求初始配置")
-	mongoURI := initialCfg.Config.URI
+	mongoURI := initialCfg.URI
 	log.Debug("开始连接数据库", slog.Any("mongo_uri", mongoURI))
 	db, err := mongodb.Open(mongoURI)
 	if err != nil {
@@ -110,7 +110,11 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	multiDialer := tunutil.NewMatchDialer(systemDialer, agentDialer, serverDialer)
 
 	tunnelInnerHandler := httpkit.NewHandler()
-	serverdOpt := serverd.NewOption().Handler(tunnelInnerHandler).Validator(valid).Logger(log).Huber(hub)
+	serverdOpt := serverd.NewOption().
+		Handler(tunnelInnerHandler).
+		Valid(valid.Validate).
+		Logger(log).
+		Huber(hub)
 	tunnelAccept := serverd.New(curBroker, repoAll, serverdOpt)
 	exposeAPIs := []shipx.RouteRegister{
 		exprestapi.NewTunnel(tunnelAccept),
