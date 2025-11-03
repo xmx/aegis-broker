@@ -91,6 +91,9 @@ func defaultValid(v any) error {
 	if req.MachineID == "" {
 		return errors.New("机器码不能为空")
 	}
+	if req.Inet == "" {
+		return errors.New("IP 不能为空")
+	}
 	if req.Goos == "" {
 		return errors.New("系统类型不能为空")
 	}
