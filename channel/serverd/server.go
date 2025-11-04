@@ -37,6 +37,7 @@ type agentServer struct {
 }
 
 func (as *agentServer) Handle(mux tundial.Muxer) {
+	//goland:noinspection GoUnhandledErrorResult
 	defer mux.Close()
 
 	if !as.opt.allow() {
@@ -44,12 +45,16 @@ func (as *agentServer) Handle(mux tundial.Muxer) {
 		return
 	}
 
-	const defaultTimeout = 30 * time.Second
-	_, peer, succeed := as.authentication(mux, defaultTimeout)
+	timeout := as.opt.timeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+
+	_, peer, succeed := as.authentication(mux, timeout)
 	if !succeed {
 		return
 	}
-	defer as.disconnected(peer, defaultTimeout)
+	defer as.disconnected(peer, timeout)
 
 	srv := as.getServer(peer)
 	_ = srv.Serve(mux)
@@ -89,7 +94,7 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 	attrs = append(attrs, slog.Any("auth_request", req))
 	if err = as.opt.valid(req); err != nil {
 		attrs = append(attrs, slog.Any("error", err))
-		as.log().Error("读取请求信息校验错误", attrs...)
+		as.log().Error("校验请求报文错误", attrs...)
 		_ = as.writeError(sig, http.StatusBadRequest, err)
 		return nil, nil, false
 	}
@@ -148,7 +153,7 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 	update := bson.M{"$set": bson.M{
 		"status": true, "tunnel_stat": tunStat, "execute_stat": exeStat, "broker": point,
 	}}
-	filter := bson.M{"_id": agtID, "status": false}
+	filter := bson.D{{"_id", agt.ID}, {"status", false}}
 	agentRepo := as.repo.Agent()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

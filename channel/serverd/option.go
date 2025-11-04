@@ -5,17 +5,19 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/xmx/aegis-control/linkhub"
 )
 
 type option struct {
-	server *http.Server
-	logger *slog.Logger
-	huber  linkhub.Huber
-	allow  func() bool
-	valid  func(req any) error
-	parent context.Context
+	server  *http.Server
+	logger  *slog.Logger
+	huber   linkhub.Huber
+	allow   func() bool
+	valid   func(req any) error
+	parent  context.Context
+	timeout time.Duration
 }
 
 func NewOption() OptionBuilder {

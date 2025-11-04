@@ -33,6 +33,7 @@ import (
 	"github.com/xmx/aegis-control/linkhub"
 	"github.com/xmx/aegis-control/mongodb"
 	"github.com/xmx/aegis-control/quick"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 func Run(ctx context.Context, cfg string) error {
@@ -79,7 +80,11 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	log.Info("向中心端请求初始配置")
 	mongoURI := initialCfg.URI
 	log.Debug("开始连接数据库", slog.Any("mongo_uri", mongoURI))
-	db, err := mongodb.Open(mongoURI)
+	mongoLogOpt := options.Logger().
+		SetSink(logger.NewSink(logHandler)).
+		SetComponentLevel(options.LogComponentCommand, options.LogLevelDebug)
+	mongoOpt := options.Client().SetLoggerOptions(mongoLogOpt)
+	db, err := mongodb.Open(mongoURI, mongoOpt)
 	if err != nil {
 		log.Error("数据库连接错误", slog.Any("error", err))
 		return err
@@ -102,7 +107,6 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	_ = agentSvc.Reset(ctx, curBroker.ID)
 
 	hub := linkhub.NewHub(4096)
-
 	systemDialer := tunutil.DefaultDialer()
 	muxDialer := tunutil.NewMuxDialer(mux)
 	serverDialer := tunutil.NewHostMatchDialer(tunutil.ServerHost, muxDialer)
