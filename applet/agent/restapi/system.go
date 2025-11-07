@@ -3,7 +3,6 @@ package restapi
 import (
 	"github.com/xgfone/ship/v5"
 	"github.com/xmx/aegis-broker/applet/agent/service"
-	"github.com/xmx/aegis-common/contract/message"
 	"github.com/xmx/aegis-control/datalayer/model"
 	"github.com/xmx/aegis-control/linkhub"
 )
@@ -24,7 +23,10 @@ func (s *System) RegisterRoute(r *ship.RouteGroupBuilder) error {
 }
 
 func (s *System) network(c *ship.Context) error {
-	req := new(message.Data[model.NodeNetworks])
+	type requestData struct {
+		Data model.NodeNetworks `json:"data"`
+	}
+	req := new(requestData)
 	if err := c.Bind(req); err != nil {
 		return err
 	}

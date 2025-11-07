@@ -143,7 +143,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	shipLog := logger.NewShip(logHandler)
 	srvSH := ship.Default()
 	srvSH.NotFound = shipx.NotFound
-	srvSH.HandleError = shipx.HandleErrorWithHost("broker")
+	srvSH.HandleError = shipx.HandleError
 	srvSH.Validator = valid
 	srvSH.Logger = shipLog
 	srvHandler.Store(srvSH)
