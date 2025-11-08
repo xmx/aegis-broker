@@ -60,4 +60,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aegis-broker
-          path: aegis-broker-*
+          path: aegis-broker_*
