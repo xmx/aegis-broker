@@ -42,6 +42,8 @@ github.com/xmx/aegis-common v0.0.0-20251112092434-15dda1e977a6 h1:MRe3SG3NDuA1Yl
 github.com/xmx/aegis-common v0.0.0-20251112092434-15dda1e977a6/go.mod h1:Wv04t2wXLsq0dbXiTeza3K+P66FRtgqZ1sFWeiw7KN4=
 github.com/xmx/aegis-control v0.0.0-20251112031235-65639ff33579 h1:e+XJPGNAASgHiyZILcUFAudbIzPTXiIVW9om3wPUrqI=
 github.com/xmx/aegis-control v0.0.0-20251112031235-65639ff33579/go.mod h1:kyMHWR4oXmabdKvcO89d3mEhugQZyPYEGoJgwEDopY0=
+github.com/xmx/aegis-control v0.0.0-20251112100204-41a159edb72e h1:5bwR71kWbntsseOIP/U+cVujF/50C9RGx9KvpWmHOhk=
+github.com/xmx/aegis-control v0.0.0-20251112100204-41a159edb72e/go.mod h1:wKomubNcrTpr5uwTmiA7kXjSZlROZ0iYYJM5trOyNgw=
 github.com/xtaci/smux v1.5.35 h1:RosihGJBeaS8gxOZ17HNxbhONwnqQwNwusHx4+SEGhk=
 github.com/xtaci/smux v1.5.35/go.mod h1:OMlQbT5vcgl2gb49mFkYo6SMf+zP3rcjcwQz7ZU7IGY=
 github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 h1:ilQV1hzziu+LLM3zUTJ0trRztfwgjqKnBWNtSRkbmwM=
