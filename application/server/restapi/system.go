@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/xgfone/ship/v5"
-	"github.com/xmx/aegis-broker/applet/server/data/response"
+	"github.com/xmx/aegis-broker/application/server/response"
 	"github.com/xmx/aegis-broker/config"
 	"github.com/xmx/aegis-control/datalayer/model"
 )

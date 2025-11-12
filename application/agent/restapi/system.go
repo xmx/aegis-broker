@@ -2,7 +2,7 @@ package restapi
 
 import (
 	"github.com/xgfone/ship/v5"
-	"github.com/xmx/aegis-broker/applet/agent/service"
+	"github.com/xmx/aegis-broker/application/agent/service"
 	"github.com/xmx/aegis-control/datalayer/model"
 	"github.com/xmx/aegis-control/linkhub"
 )

@@ -11,12 +11,12 @@ import (
 
 	"github.com/robfig/cron/v3"
 	"github.com/xgfone/ship/v5"
-	agtrestapi "github.com/xmx/aegis-broker/applet/agent/restapi"
-	agtservice "github.com/xmx/aegis-broker/applet/agent/service"
-	"github.com/xmx/aegis-broker/applet/crontab"
-	exprestapi "github.com/xmx/aegis-broker/applet/expose/restapi"
-	expservice "github.com/xmx/aegis-broker/applet/expose/service"
-	srvrestapi "github.com/xmx/aegis-broker/applet/server/restapi"
+	agtrestapi "github.com/xmx/aegis-broker/application/agent/restapi"
+	agtservice "github.com/xmx/aegis-broker/application/agent/service"
+	"github.com/xmx/aegis-broker/application/crontab"
+	exprestapi "github.com/xmx/aegis-broker/application/expose/restapi"
+	expservice "github.com/xmx/aegis-broker/application/expose/service"
+	srvrestapi "github.com/xmx/aegis-broker/application/server/restapi"
 	"github.com/xmx/aegis-broker/business"
 	"github.com/xmx/aegis-broker/channel/clientd"
 	"github.com/xmx/aegis-broker/channel/serverd"
@@ -27,6 +27,7 @@ import (
 	"github.com/xmx/aegis-common/logger"
 	"github.com/xmx/aegis-common/profile"
 	"github.com/xmx/aegis-common/shipx"
+	"github.com/xmx/aegis-common/stegano"
 	"github.com/xmx/aegis-common/tunnel/tundial"
 	"github.com/xmx/aegis-common/tunnel/tunutil"
 	"github.com/xmx/aegis-control/datalayer/repository"
@@ -37,7 +38,14 @@ import (
 )
 
 func Run(ctx context.Context, cfg string) error {
-	cfr := profile.File[config.Config](cfg)
+	var cfr profile.Reader[config.Config]
+	if cfg != "" {
+		cfr = profile.File[config.Config](cfg)
+	} else {
+		exe := os.Args[0]
+		cfr = stegano.File[config.Config](exe)
+	}
+
 	return Exec(ctx, cfr)
 }
 
