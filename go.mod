@@ -7,7 +7,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/xgfone/ship/v5 v5.3.2
 	github.com/xmx/aegis-common v0.0.0-20251113013759-e9aefbfac795
-	github.com/xmx/aegis-control v0.0.0-20251113024636-155b8dca3758
+	github.com/xmx/aegis-control v0.0.0-20251113050350-360d0849eb02
 	go.mongodb.org/mongo-driver/v2 v2.4.0
 )
 
