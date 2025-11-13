@@ -38,14 +38,10 @@ github.com/xdg-go/stringprep v1.0.4 h1:XLI/Ng3O1Atzq0oBs3TWm+5ZVgkq2aqdlvP9JtoZ6
 github.com/xdg-go/stringprep v1.0.4/go.mod h1:mPGuuIYwz7CmR2bT9j4GbQqutWS1zV24gijq1dTyGkM=
 github.com/xgfone/ship/v5 v5.3.2 h1:PFFNyCTT8psAfeizDexFX33SgFJpVikPuSMcjYxqGJA=
 github.com/xgfone/ship/v5 v5.3.2/go.mod h1:mGI+65lLL3kaOseMkWUYgy+OFl27WV2LY1NSsecu/9g=
-github.com/xmx/aegis-common v0.0.0-20251113013759-e9aefbfac795 h1:I0FhI1G560HagR8IkdHFHqEECqyHlaJW1Srd6KtDHDQ=
-github.com/xmx/aegis-common v0.0.0-20251113013759-e9aefbfac795/go.mod h1:9/LWQBGtUZTQRQUHFoEGOQNPogXq9j8dT6yCxuO7bd0=
 github.com/xmx/aegis-common v0.0.0-20251113072253-3da916513549 h1:Prhm+pVUECk8FScNdhQjIkItacTkK/NlnCUADV2ljlQ=
 github.com/xmx/aegis-common v0.0.0-20251113072253-3da916513549/go.mod h1:9/LWQBGtUZTQRQUHFoEGOQNPogXq9j8dT6yCxuO7bd0=
-github.com/xmx/aegis-control v0.0.0-20251113024636-155b8dca3758 h1:MIJLcNN9WpEupDFV1AzFcaU7D8jsyEqg8XaUFN029jU=
-github.com/xmx/aegis-control v0.0.0-20251113024636-155b8dca3758/go.mod h1:ENq+f5eRLPtG16hBmHRmeGzsv7aG2twUgZTOSL0lPCQ=
-github.com/xmx/aegis-control v0.0.0-20251113050350-360d0849eb02 h1:6o2yjnKK5srjHlaxiuhn0FaKxTBZrA+3yKWzB15RnJk=
-github.com/xmx/aegis-control v0.0.0-20251113050350-360d0849eb02/go.mod h1:ENq+f5eRLPtG16hBmHRmeGzsv7aG2twUgZTOSL0lPCQ=
+github.com/xmx/aegis-control v0.0.0-20251113081208-51c8d8b3db9b h1:S1G5MKoF7bI5gXmflGU6IF01nhzW6rvrggh1wMshSCo=
+github.com/xmx/aegis-control v0.0.0-20251113081208-51c8d8b3db9b/go.mod h1:NLdpurKoKWVBJU5yS8WWQV6RDSG2n7aK8zN5/Pld+fI=
 github.com/xtaci/smux v1.5.35 h1:RosihGJBeaS8gxOZ17HNxbhONwnqQwNwusHx4+SEGhk=
 github.com/xtaci/smux v1.5.35/go.mod h1:OMlQbT5vcgl2gb49mFkYo6SMf+zP3rcjcwQz7ZU7IGY=
 github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 h1:ilQV1hzziu+LLM3zUTJ0trRztfwgjqKnBWNtSRkbmwM=
