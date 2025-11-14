@@ -38,14 +38,10 @@ github.com/xdg-go/stringprep v1.0.4 h1:XLI/Ng3O1Atzq0oBs3TWm+5ZVgkq2aqdlvP9JtoZ6
 github.com/xdg-go/stringprep v1.0.4/go.mod h1:mPGuuIYwz7CmR2bT9j4GbQqutWS1zV24gijq1dTyGkM=
 github.com/xgfone/ship/v5 v5.3.2 h1:PFFNyCTT8psAfeizDexFX33SgFJpVikPuSMcjYxqGJA=
 github.com/xgfone/ship/v5 v5.3.2/go.mod h1:mGI+65lLL3kaOseMkWUYgy+OFl27WV2LY1NSsecu/9g=
-github.com/xmx/aegis-common v0.0.0-20251113072253-3da916513549 h1:Prhm+pVUECk8FScNdhQjIkItacTkK/NlnCUADV2ljlQ=
-github.com/xmx/aegis-common v0.0.0-20251113072253-3da916513549/go.mod h1:9/LWQBGtUZTQRQUHFoEGOQNPogXq9j8dT6yCxuO7bd0=
-github.com/xmx/aegis-common v0.0.0-20251113105218-0fb981edd993 h1:fqAqYvhnNaVZ5t2FZ0eIvlwrpTjo0Yq8Q/CgXAmjw9o=
-github.com/xmx/aegis-common v0.0.0-20251113105218-0fb981edd993/go.mod h1:9/LWQBGtUZTQRQUHFoEGOQNPogXq9j8dT6yCxuO7bd0=
-github.com/xmx/aegis-control v0.0.0-20251113081208-51c8d8b3db9b h1:S1G5MKoF7bI5gXmflGU6IF01nhzW6rvrggh1wMshSCo=
-github.com/xmx/aegis-control v0.0.0-20251113081208-51c8d8b3db9b/go.mod h1:NLdpurKoKWVBJU5yS8WWQV6RDSG2n7aK8zN5/Pld+fI=
-github.com/xmx/aegis-control v0.0.0-20251113110000-fba88c367dee h1:OLOOhujcge4DnLv92lbsPHmI6UCt4KaNKgA8JU5agpw=
-github.com/xmx/aegis-control v0.0.0-20251113110000-fba88c367dee/go.mod h1:NsvoeFZAIXQQaR4XjJNiWGHAHab24zWCSCDpmQ0Z1eM=
+github.com/xmx/aegis-common v0.0.0-20251114032316-a75287af0d97 h1:ccpxM+eMMfZYNUtsY5yj/hQeHvhxHbHvTGuEmOWi450=
+github.com/xmx/aegis-common v0.0.0-20251114032316-a75287af0d97/go.mod h1:FraHYQHsBakcVcXcUy7hCRLA4u6+2+TE67FSL67J55Y=
+github.com/xmx/aegis-control v0.0.0-20251114050052-ab858200cf3e h1:4pZnBQ1+5rFHR8JHYjRTGL4GVjVfJ5t+I+9L/hnQ6JI=
+github.com/xmx/aegis-control v0.0.0-20251114050052-ab858200cf3e/go.mod h1:Wbn4k+pu8Cubk+oIIb9bda95lpQQQttnAUCnJjG+3qc=
 github.com/xtaci/smux v1.5.35 h1:RosihGJBeaS8gxOZ17HNxbhONwnqQwNwusHx4+SEGhk=
 github.com/xtaci/smux v1.5.35/go.mod h1:OMlQbT5vcgl2gb49mFkYo6SMf+zP3rcjcwQz7ZU7IGY=
 github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 h1:ilQV1hzziu+LLM3zUTJ0trRztfwgjqKnBWNtSRkbmwM=
@@ -90,5 +86,7 @@ golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGm
 golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
 golang.org/x/tools v0.1.12/go.mod h1:hNGJHUnrk76NpqgfD5Aqm5Crs+Hm0VOH/i9J2+nxYbc=
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+gopkg.in/natefinch/lumberjack.v2 v2.2.1 h1:bBRl1b0OH9s/DuPhuXpNl+VtCaJXFZ5/uEFST95x9zc=
+gopkg.in/natefinch/lumberjack.v2 v2.2.1/go.mod h1:YD8tP3GAjkrDg1eZH7EGmyESg/lsYskCTPBJVb9jqSc=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=

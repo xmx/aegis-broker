@@ -17,7 +17,6 @@ import (
 	exprestapi "github.com/xmx/aegis-broker/application/expose/restapi"
 	expservice "github.com/xmx/aegis-broker/application/expose/service"
 	srvrestapi "github.com/xmx/aegis-broker/application/server/restapi"
-	"github.com/xmx/aegis-broker/business"
 	"github.com/xmx/aegis-broker/channel/clientd"
 	"github.com/xmx/aegis-broker/channel/serverd"
 	"github.com/xmx/aegis-broker/config"
@@ -34,7 +33,9 @@ import (
 	"github.com/xmx/aegis-control/linkhub"
 	"github.com/xmx/aegis-control/mongodb"
 	"github.com/xmx/aegis-control/quick"
+	"github.com/xmx/aegis-control/tlscert"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 func Run(ctx context.Context, cfg string) error {
@@ -51,8 +52,8 @@ func Run(ctx context.Context, cfg string) error {
 
 func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	consoleOut := logger.NewTint(os.Stdout, nil)
-	logHandler := logger.NewHandler(consoleOut)
-	log := slog.New(logHandler)
+	logh := logger.NewHandler(consoleOut)
+	log := slog.New(logh)
 
 	hideCfg, err := crd.Read()
 	if err != nil {
@@ -89,7 +90,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	mongoURI := initialCfg.URI
 	log.Debug("开始连接数据库", slog.Any("mongo_uri", mongoURI))
 	mongoLogOpt := options.Logger().
-		SetSink(logger.NewSink(logHandler)).
+		SetSink(logger.NewSink(logh)).
 		SetComponentLevel(options.LogComponentCommand, options.LogLevelDebug)
 	mongoOpt := options.Client().SetLoggerOptions(mongoLogOpt)
 	db, err := mongodb.Open(mongoURI, mongoOpt)
@@ -99,18 +100,42 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 	log.Info("数据库连接成功")
 
-	repoAll := repository.NewAll(db)
-	brokerBiz := business.NewBroker(repoAll, log)
-	certificateBiz := business.NewCertificate(repoAll, log)
-
 	// 查询自己的配置
-	curBroker, err := brokerBiz.FindBySecret(ctx, hideCfg.Secret)
+	repoAll := repository.NewAll(db)
+	curBroker, err := repoAll.Broker().GetBySecret(ctx, hideCfg.Secret)
 	if err != nil {
 		return err
 	}
+	bcfg := curBroker.Config
+	lc := bcfg.Logger
+
+	logLevel := new(slog.LevelVar)
+	_ = logLevel.UnmarshalText([]byte(lc.Level))
+	logOpt := &slog.HandlerOptions{AddSource: true, Level: logLevel}
+	logh.Replace()
+	if lc.Console {
+		tint := logger.NewTint(os.Stdout, logOpt)
+		logh.Attach(tint)
+	}
+	if fname := lc.Filename; fname != "" {
+		lumber := &lumberjack.Logger{
+			Filename:   fname,
+			MaxSize:    lc.MaxSize,
+			MaxAge:     lc.MaxAge,
+			MaxBackups: lc.MaxBackups,
+			LocalTime:  lc.LocalTime,
+			Compress:   lc.Compress,
+		}
+		defer lumber.Close()
+
+		lh := slog.NewJSONHandler(lumber, logOpt)
+		logh.Attach(lh)
+	}
+
+	loadCert := repoAll.Certificate().Enables
+	certPool := tlscert.NewCertPool(loadCert, log)
 
 	brokerID := curBroker.ID
-	bootCfg := curBroker.Config
 	agentSvc := expservice.NewAgent(repoAll, log)
 	_ = agentSvc.Reset(ctx, curBroker.ID)
 
@@ -134,9 +159,8 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 
 	serverAPIs := []shipx.RouteRegister{
 		srvrestapi.NewReverse(multiDialer),
-		srvrestapi.NewCertificate(certificateBiz, log),
 		srvrestapi.NewEcho(),
-		srvrestapi.NewSystem(hideCfg, bootCfg),
+		srvrestapi.NewSystem(hideCfg, bcfg),
 		shipx.NewHealth(),
 		shipx.NewPprof(),
 	}
@@ -148,7 +172,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		)
 	}
 
-	shipLog := logger.NewShip(logHandler)
+	shipLog := logger.NewShip(logh)
 	srvSH := ship.Default()
 	srvSH.NotFound = shipx.NotFound
 	srvSH.HandleError = shipx.HandleError
@@ -197,13 +221,13 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		_, _ = crond.AddTask(task)
 	}
 
-	listenAddr := bootCfg.Server.Addr
+	listenAddr := bcfg.Server.Addr
 	if listenAddr == "" {
 		listenAddr = ":443"
 	}
 
 	tlsCfg := &tls.Config{
-		GetCertificate:     certificateBiz.GetCertificate,
+		GetCertificate:     certPool.Match,
 		NextProtos:         []string{"http/1.1", "h2", "aegis"},
 		MinVersion:         tls.VersionTLS13,
 		InsecureSkipVerify: true,

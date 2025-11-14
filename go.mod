@@ -6,9 +6,10 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/xgfone/ship/v5 v5.3.2
-	github.com/xmx/aegis-common v0.0.0-20251113105218-0fb981edd993
-	github.com/xmx/aegis-control v0.0.0-20251113110000-fba88c367dee
+	github.com/xmx/aegis-common v0.0.0-20251114032316-a75287af0d97
+	github.com/xmx/aegis-control v0.0.0-20251114050052-ab858200cf3e
 	go.mongodb.org/mongo-driver/v2 v2.4.0
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
 require (
