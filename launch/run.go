@@ -226,21 +226,17 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		listenAddr = ":443"
 	}
 
-	tlsCfg := &tls.Config{
-		GetCertificate:     certPool.Match,
-		NextProtos:         []string{"http/1.1", "h2", "aegis"},
-		MinVersion:         tls.VersionTLS13,
-		InsecureSkipVerify: true,
-	}
+	httpTLS := &tls.Config{GetCertificate: certPool.Match}
+	quicTLS := &tls.Config{GetCertificate: certPool.Match, MinVersion: tls.VersionTLS13, NextProtos: []string{"aegis"}}
 	httpSrv := &http.Server{
 		Addr:      listenAddr,
 		Handler:   exposeSH,
-		TLSConfig: tlsCfg,
+		TLSConfig: httpTLS,
 	}
 	quicSrv := &quick.QUICGo{
 		Addr:      listenAddr,
 		Handler:   tunnelAccept,
-		TLSConfig: tlsCfg,
+		TLSConfig: quicTLS,
 	}
 
 	errs := make(chan error, 2)
