@@ -5,11 +5,11 @@ import (
 	"net"
 	"sync/atomic"
 
-	"github.com/xmx/aegis-common/tunnel/tundial"
+	"github.com/xmx/aegis-common/tunnel/tunopen"
 )
 
 type safeMuxer struct {
-	ptr atomic.Pointer[tundial.Muxer]
+	ptr atomic.Pointer[tunopen.Muxer]
 }
 
 func (sm *safeMuxer) Accept() (net.Conn, error)                  { return sm.load().Accept() }
@@ -20,7 +20,7 @@ func (sm *safeMuxer) RemoteAddr() net.Addr                       { return sm.loa
 func (sm *safeMuxer) Protocol() (string, string)                 { return sm.load().Protocol() }
 func (sm *safeMuxer) Transferred() (rx, tx uint64)               { return sm.load().Transferred() }
 
-func (sm *safeMuxer) store(mux tundial.Muxer) {
+func (sm *safeMuxer) store(mux tunopen.Muxer) {
 	if mux == nil {
 		panic("通道不能为空")
 	}
@@ -31,7 +31,7 @@ func (sm *safeMuxer) store(mux tundial.Muxer) {
 	sm.ptr.Store(&mux)
 }
 
-func (sm *safeMuxer) load() tundial.Muxer {
+func (sm *safeMuxer) load() tunopen.Muxer {
 	if m := sm.ptr.Load(); m != nil {
 		return *m
 	}

@@ -27,8 +27,9 @@ import (
 	"github.com/xmx/aegis-common/profile"
 	"github.com/xmx/aegis-common/shipx"
 	"github.com/xmx/aegis-common/stegano"
+	"github.com/xmx/aegis-common/tunnel/tunconst"
 	"github.com/xmx/aegis-common/tunnel/tundial"
-	"github.com/xmx/aegis-common/tunnel/tunutil"
+	"github.com/xmx/aegis-common/tunnel/tunopen"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"github.com/xmx/aegis-control/linkhub"
 	"github.com/xmx/aegis-control/mongodb"
@@ -74,7 +75,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 
 	log.Info("向中心端建立连接中...")
 	srvHandler := httpkit.NewHandler()
-	dialCfg := tundial.Config{
+	dialCfg := tunopen.Config{
 		Protocols:  hideCfg.Protocols,
 		Addresses:  hideCfg.Addresses,
 		PerTimeout: 10 * time.Second,
@@ -140,11 +141,12 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	_ = agentSvc.Reset(ctx, curBroker.ID)
 
 	hub := linkhub.NewHub(4096)
-	systemDialer := tunutil.DefaultDialer()
-	muxDialer := tunutil.NewMuxDialer(mux)
-	serverDialer := tunutil.NewHostMatchDialer(tunutil.ServerHost, muxDialer)
-	agentDialer := linkhub.NewSuffixDialer(hub, tunutil.AgentHostSuffix)
-	multiDialer := tunutil.NewMatchDialer(systemDialer, agentDialer, serverDialer)
+	netDialer := &net.Dialer{Timeout: 30 * time.Second}
+	tunDialers := []tundial.ContextDialer{
+		tundial.NewMatchHostDialer(tunconst.ServerHost, mux),
+		linkhub.NewSuffixDialer(tunconst.AgentHostSuffix, hub),
+	}
+	dualDialer := tundial.NewFirstMatchDialer(tunDialers, netDialer)
 
 	tunnelInnerHandler := httpkit.NewHandler()
 	serverdOpt := serverd.NewOption().
@@ -158,7 +160,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	serverAPIs := []shipx.RouteRegister{
-		srvrestapi.NewReverse(multiDialer),
+		srvrestapi.NewReverse(dualDialer),
 		srvrestapi.NewEcho(),
 		srvrestapi.NewSystem(hideCfg, bcfg),
 		shipx.NewHealth(),

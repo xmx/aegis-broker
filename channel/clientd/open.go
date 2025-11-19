@@ -11,11 +11,10 @@ import (
 
 	"github.com/xmx/aegis-common/library/timex"
 	"github.com/xmx/aegis-common/options"
-	"github.com/xmx/aegis-common/tunnel/tundial"
-	"github.com/xmx/aegis-common/tunnel/tunutil"
+	"github.com/xmx/aegis-common/tunnel/tunopen"
 )
 
-func Open(cfg tundial.Config, secret string, opts ...options.Lister[option]) (tundial.Muxer, AuthConfig, error) {
+func Open(cfg tunopen.Config, secret string, opts ...options.Lister[option]) (tunopen.Muxer, AuthConfig, error) {
 	if cfg.Parent == nil {
 		cfg.Parent = context.Background()
 	}
@@ -35,7 +34,7 @@ func Open(cfg tundial.Config, secret string, opts ...options.Lister[option]) (tu
 }
 
 type brokerClient struct {
-	cfg    tundial.Config
+	cfg    tunopen.Config
 	opt    option
 	mux    *safeMuxer
 	secret string
@@ -79,8 +78,8 @@ func (bc *brokerClient) opens() (AuthConfig, error) {
 	}
 }
 
-func (bc *brokerClient) open(req *authRequest, timeout time.Duration) (tundial.Muxer, *authResponse, error) {
-	mux, err := tundial.Open(bc.cfg)
+func (bc *brokerClient) open(req *authRequest, timeout time.Duration) (tunopen.Muxer, *authResponse, error) {
+	mux, err := tunopen.Open(bc.cfg)
 	if err != nil {
 		bc.log().Info("基础网络连接失败", "error", err)
 		return nil, nil, err
@@ -113,7 +112,7 @@ func (bc *brokerClient) open(req *authRequest, timeout time.Duration) (tundial.M
 	return mux, res, nil
 }
 
-func (bc *brokerClient) authentication(mux tundial.Muxer, req *authRequest, timeout time.Duration) (*authResponse, error) {
+func (bc *brokerClient) authentication(mux tunopen.Muxer, req *authRequest, timeout time.Duration) (*authResponse, error) {
 	ctx, cancel := context.WithTimeout(bc.cfg.Parent, timeout)
 	defer cancel()
 
@@ -126,18 +125,18 @@ func (bc *brokerClient) authentication(mux tundial.Muxer, req *authRequest, time
 
 	now := time.Now()
 	_ = conn.SetDeadline(now.Add(timeout))
-	if err = tunutil.WriteAuth(conn, req); err != nil {
+	if err = tunopen.WriteAuth(conn, req); err != nil {
 		return nil, err
 	}
 	resp := new(authResponse)
-	if err = tunutil.ReadAuth(conn, resp); err != nil {
+	if err = tunopen.ReadAuth(conn, resp); err != nil {
 		return nil, err
 	}
 
 	return resp, nil
 }
 
-func (bc *brokerClient) serve(mux tundial.Muxer) {
+func (bc *brokerClient) serve(mux tunopen.Muxer) {
 	for {
 		srv := bc.opt.server
 		err := srv.Serve(mux)

@@ -10,11 +10,12 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/xgfone/ship/v5"
 	"github.com/xmx/aegis-common/library/httpkit"
-	"github.com/xmx/aegis-common/tunnel/tunutil"
+	"github.com/xmx/aegis-common/tunnel/tunconst"
+	"github.com/xmx/aegis-common/tunnel/tundial"
 	"github.com/xmx/aegis-control/library/httpnet"
 )
 
-func NewReverse(dial tunutil.Dialer) *Reverse {
+func NewReverse(dial tundial.ContextDialer) *Reverse {
 	trip := &http.Transport{DialContext: dial.DialContext}
 	prx := httpnet.NewReverse(trip)
 	return &Reverse{
@@ -46,7 +47,7 @@ func (rvs *Reverse) serve(c *ship.Context) error {
 		pth += "/"
 	}
 
-	destURL := tunutil.BrokerToAgent(id, pth)
+	destURL := tunconst.BrokerToAgent(id, pth)
 	destURL.RawQuery = reqURL.RawQuery
 
 	if c.IsWebSocket() {

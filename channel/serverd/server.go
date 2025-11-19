@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/xmx/aegis-common/options"
-	"github.com/xmx/aegis-common/tunnel/tundial"
-	"github.com/xmx/aegis-common/tunnel/tunutil"
+	"github.com/xmx/aegis-common/tunnel/tunconst"
+	"github.com/xmx/aegis-common/tunnel/tunopen"
 	"github.com/xmx/aegis-control/datalayer/model"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"github.com/xmx/aegis-control/linkhub"
@@ -19,7 +19,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-func New(cur *model.Broker, repo repository.All, opts ...options.Lister[option]) tunutil.Handler {
+func New(cur *model.Broker, repo repository.All, opts ...options.Lister[option]) tunconst.Handler {
 	opts = append(opts, fallbackOptions())
 	opt := options.Eval[option](opts...)
 
@@ -36,7 +36,7 @@ type agentServer struct {
 	opt  option
 }
 
-func (as *agentServer) Handle(mux tundial.Muxer) {
+func (as *agentServer) Handle(mux tunopen.Muxer) {
 	//goland:noinspection GoUnhandledErrorResult
 	defer mux.Close()
 
@@ -62,7 +62,7 @@ func (as *agentServer) Handle(mux tundial.Muxer) {
 
 // authentication 节点认证。
 // 客户端主动建立一条虚拟子流连接用于交换认证信息，认证后改子流关闭，后续子流即为业务流。
-func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) (*authRequest, linkhub.Peer, bool) {
+func (as *agentServer) authentication(mux tunopen.Muxer, timeout time.Duration) (*authRequest, linkhub.Peer, bool) {
 	protocol, subprotocol := mux.Protocol()
 	laddr, raddr := mux.Addr(), mux.RemoteAddr()
 	attrs := []any{
@@ -86,7 +86,7 @@ func (as *agentServer) authentication(mux tundial.Muxer, timeout time.Duration) 
 	now := time.Now()
 	_ = sig.SetDeadline(now.Add(timeout))
 	req := new(authRequest)
-	if err = tunutil.ReadAuth(sig, req); err != nil {
+	if err = tunopen.ReadAuth(sig, req); err != nil {
 		attrs = append(attrs, slog.Any("error", err))
 		as.log().Error("读取 agent 请求信息错误", attrs...)
 		return nil, nil, false
@@ -256,10 +256,10 @@ func (as *agentServer) writeError(w io.Writer, code int, err error) error {
 		resp.Message = err.Error()
 	}
 
-	return tunutil.WriteAuth(w, resp)
+	return tunopen.WriteAuth(w, resp)
 }
 
 func (as *agentServer) writeSucceed(w io.Writer) error {
 	resp := &authResponse{Code: http.StatusAccepted}
-	return tunutil.WriteAuth(w, resp)
+	return tunopen.WriteAuth(w, resp)
 }

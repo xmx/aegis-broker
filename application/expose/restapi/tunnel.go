@@ -4,16 +4,16 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/xgfone/ship/v5"
 	"github.com/xmx/aegis-common/library/httpkit"
-	"github.com/xmx/aegis-common/tunnel/tundial"
-	"github.com/xmx/aegis-common/tunnel/tunutil"
+	"github.com/xmx/aegis-common/tunnel/tunconst"
+	"github.com/xmx/aegis-common/tunnel/tunopen"
 )
 
 type Tunnel struct {
-	next tunutil.Handler
+	next tunconst.Handler
 	wsup *websocket.Upgrader
 }
 
-func NewTunnel(next tunutil.Handler) *Tunnel {
+func NewTunnel(next tunconst.Handler) *Tunnel {
 	return &Tunnel{
 		next: next,
 		wsup: httpkit.NewWebsocketUpgrader(),
@@ -34,7 +34,7 @@ func (tnl *Tunnel) open(c *ship.Context) error {
 	}
 
 	conn := ws.NetConn()
-	mux, err1 := tundial.NewSMUX(conn, nil, true)
+	mux, err1 := tunopen.NewSMUX(conn, nil, true)
 	if err1 != nil {
 		_ = conn.Close()
 		return err1
