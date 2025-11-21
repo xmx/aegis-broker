@@ -24,6 +24,7 @@ go.work.sum
 .idea
 *.iml
 .scannerwork
+.DS_Store
 
 # config file
 resources/config/*
