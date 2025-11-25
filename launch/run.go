@@ -13,6 +13,7 @@ import (
 	"github.com/xgfone/ship/v5"
 	agtrestapi "github.com/xmx/aegis-broker/application/agent/restapi"
 	agtservice "github.com/xmx/aegis-broker/application/agent/service"
+	"github.com/xmx/aegis-broker/application/business"
 	"github.com/xmx/aegis-broker/application/crontab"
 	exprestapi "github.com/xmx/aegis-broker/application/expose/restapi"
 	expservice "github.com/xmx/aegis-broker/application/expose/service"
@@ -138,6 +139,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 
 	brokerID := curBroker.ID
 	agentSvc := expservice.NewAgent(repoAll, log)
+	victoriaMetricsSvc := business.NewVictoriaMetrics(repoAll, curBroker, log)
 	_ = agentSvc.Reset(ctx, curBroker.ID)
 
 	hub := linkhub.NewHub(4096)
@@ -147,6 +149,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		linkhub.NewSuffixDialer(tunconst.AgentHostSuffix, hub),
 	}
 	dualDialer := tundial.NewFirstMatchDialer(tunDialers, netDialer)
+	_ = &http.Client{Transport: &http.Transport{DialContext: dualDialer.DialContext}}
 
 	tunnelInnerHandler := httpkit.NewHandler()
 	serverdOpt := serverd.NewOption().
@@ -171,6 +174,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		systemSvc := agtservice.NewSystem(repoAll, log)
 		agentAPIs = append(agentAPIs,
 			agtrestapi.NewSystem(systemSvc),
+			agtrestapi.NewVictoriaMetrics(victoriaMetricsSvc),
 		)
 	}
 
@@ -218,6 +222,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	cronTasks := []cronv3.Tasker{
 		crontab.NewNetwork(brokerID, repoAll),
 		crontab.NewTransmit(brokerID, mux, hub, repoAll),
+		crontab.NewMetrics(curBroker, victoriaMetricsSvc.PushConfig),
 	}
 	for _, task := range cronTasks {
 		_, _ = crond.AddTask(task)
