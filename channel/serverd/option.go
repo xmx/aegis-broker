@@ -114,7 +114,9 @@ func fallbackOptions() OptionBuilder {
 					o.parent = context.Background()
 				}
 				if o.server == nil {
-					o.server = new(http.Server)
+					srv := &http.Server{Protocols: new(http.Protocols)}
+					srv.Protocols.SetUnencryptedHTTP2(true)
+					o.server = srv
 				}
 				if o.server.Handler == nil {
 					o.server.Handler = http.NotFoundHandler()

@@ -18,11 +18,11 @@ import (
 	exprestapi "github.com/xmx/aegis-broker/application/expose/restapi"
 	expservice "github.com/xmx/aegis-broker/application/expose/service"
 	srvrestapi "github.com/xmx/aegis-broker/application/server/restapi"
+	srvservice "github.com/xmx/aegis-broker/application/server/service"
 	"github.com/xmx/aegis-broker/channel/clientd"
 	"github.com/xmx/aegis-broker/channel/serverd"
 	"github.com/xmx/aegis-broker/config"
 	"github.com/xmx/aegis-common/library/cronv3"
-	"github.com/xmx/aegis-common/library/httpkit"
 	"github.com/xmx/aegis-common/library/validation"
 	"github.com/xmx/aegis-common/logger"
 	"github.com/xmx/aegis-common/profile"
@@ -64,7 +64,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	valid := validation.New()
-	_ = valid.RegisterCustomValidations(validation.Customs())
+	_ = valid.RegisterCustomValidations(validation.All())
 	if err = valid.Validate(hideCfg); err != nil {
 		log.Error("配置验证错误", slog.Any("error", err))
 		return err
@@ -75,14 +75,21 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	defer crond.Stop()
 
 	log.Info("向中心端建立连接中...")
-	srvHandler := httpkit.NewHandler()
+
+	shipLog := logger.NewShip(logh)
+	srvSH := ship.Default()
+	srvSH.NotFound = shipx.NotFound
+	srvSH.HandleError = shipx.HandleError
+	srvSH.Validator = valid
+	srvSH.Logger = shipLog
+
 	dialCfg := tunopen.Config{
 		Protocols:  hideCfg.Protocols,
 		Addresses:  hideCfg.Addresses,
 		PerTimeout: 10 * time.Second,
 		Parent:     ctx,
 	}
-	clientdOpt := clientd.NewOption().Handler(srvHandler).Logger(log)
+	clientdOpt := clientd.NewOption().Handler(srvSH).Logger(log)
 	mux, initialCfg, err := clientd.Open(dialCfg, hideCfg.Secret, clientdOpt)
 	if err != nil {
 		return err
@@ -151,9 +158,14 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	dualDialer := tundial.NewFirstMatchDialer(tunDialers, netDialer)
 	_ = &http.Client{Transport: &http.Transport{DialContext: dualDialer.DialContext}}
 
-	tunnelInnerHandler := httpkit.NewHandler()
+	agtSH := ship.Default()
+	agtSH.NotFound = shipx.NotFound
+	agtSH.HandleError = shipx.HandleError
+	agtSH.Validator = valid
+	agtSH.Logger = shipLog
+
 	serverdOpt := serverd.NewOption().
-		Handler(tunnelInnerHandler).
+		Handler(agtSH).
 		Valid(valid.Validate).
 		Logger(log).
 		Huber(hub)
@@ -162,10 +174,11 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		exprestapi.NewTunnel(tunnelAccept),
 	}
 
+	srvSystemSvc := srvservice.NewSystem(repoAll, hideCfg, bcfg, log)
 	serverAPIs := []shipx.RouteRegister{
 		srvrestapi.NewReverse(dualDialer),
 		srvrestapi.NewEcho(),
-		srvrestapi.NewSystem(hideCfg, bcfg),
+		srvrestapi.NewSystem(srvSystemSvc),
 		shipx.NewHealth(),
 		shipx.NewPprof(),
 	}
@@ -178,14 +191,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		)
 	}
 
-	shipLog := logger.NewShip(logh)
-	srvSH := ship.Default()
-	srvSH.NotFound = shipx.NotFound
-	srvSH.HandleError = shipx.HandleError
-	srvSH.Validator = valid
-	srvSH.Logger = shipLog
-	srvHandler.Store(srvSH)
-
+	// server RPC 路由注册。
 	{
 		apiRGB := srvSH.Group("/api")
 		if err = shipx.RegisterRoutes(apiRGB, serverAPIs); err != nil {
@@ -198,7 +204,6 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	exposeSH.HandleError = shipx.HandleError
 	exposeSH.Validator = valid
 	exposeSH.Logger = shipLog
-
 	{
 		apiRGB := exposeSH.Group("/api")
 		if err = shipx.RegisterRoutes(apiRGB, exposeAPIs); err != nil {
@@ -206,12 +211,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		}
 	}
 
-	agtSH := ship.Default()
-	agtSH.NotFound = shipx.NotFound
-	agtSH.HandleError = shipx.HandleError
-	agtSH.Validator = valid
-	agtSH.Logger = shipLog
-	tunnelInnerHandler.Store(agtSH)
+	// agent RPC 路由注册。
 	{
 		apiRGB := agtSH.Group("/api")
 		if err = shipx.RegisterRoutes(apiRGB, agentAPIs); err != nil {

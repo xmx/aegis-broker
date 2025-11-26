@@ -51,7 +51,9 @@ func fallbackOptions() OptionBuilder {
 		opts: []func(option) option{
 			func(o option) option {
 				if o.server == nil {
-					o.server = new(http.Server)
+					srv := &http.Server{Protocols: new(http.Protocols)}
+					srv.Protocols.SetUnencryptedHTTP2(true)
+					o.server = srv
 				}
 				if o.server.Handler == nil {
 					o.server.Handler = http.NotFoundHandler()

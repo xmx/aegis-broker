@@ -2,26 +2,70 @@ package restapi
 
 import (
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/xgfone/ship/v5"
+	"github.com/xmx/aegis-broker/application/errcode"
 	"github.com/xmx/aegis-common/library/httpkit"
+	"github.com/xmx/aegis-common/problem"
 	"github.com/xmx/aegis-common/tunnel/tunconst"
 	"github.com/xmx/aegis-common/tunnel/tundial"
-	"github.com/xmx/aegis-control/library/httpnet"
 )
 
 func NewReverse(dial tundial.ContextDialer) *Reverse {
 	trip := &http.Transport{DialContext: dial.DialContext}
-	prx := httpnet.NewReverse(trip)
+	resv := &httputil.ReverseProxy{
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.SetXForwarded()
+		},
+		Transport: trip,
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			host := r.Host
+			if host == "" {
+				host = r.URL.Host
+			}
+
+			prob := &problem.Details{
+				Host:     host,
+				Status:   http.StatusBadGateway,
+				Instance: r.URL.Path,
+				Method:   r.Method,
+				Datetime: time.Now().UTC(),
+			}
+
+			if ae, ok := err.(*net.OpError); ok {
+				addr := ae.Addr.String()
+				nodeID, _, found := strings.Cut(addr, tunconst.AgentHostSuffix)
+				if found {
+					err = errcode.FmtAgentDisconnect.Fmt(nodeID)
+				}
+			}
+			prob.Detail = err.Error()
+
+			_ = prob.JSON(w)
+		},
+	}
+	wsu := &websocket.Upgrader{
+		HandshakeTimeout:  10 * time.Second,
+		CheckOrigin:       func(*http.Request) bool { return true },
+		EnableCompression: true,
+	}
+	wsd := &websocket.Dialer{
+		NetDialContext:    dial.DialContext,
+		HandshakeTimeout:  10 * time.Second,
+		EnableCompression: true,
+	}
+
 	return &Reverse{
-		prx: prx,
-		wsu: httpkit.NewWebsocketUpgrader(),
-		wsd: httpkit.NewWebsocketDialer(dial.DialContext),
+		prx: resv,
+		wsu: wsu,
+		wsd: wsd,
 	}
 }
 
