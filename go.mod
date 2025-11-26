@@ -6,8 +6,8 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/xgfone/ship/v5 v5.3.2
-	github.com/xmx/aegis-common v0.0.0-20251125073750-977e3e837d4d
-	github.com/xmx/aegis-control v0.0.0-20251125091028-ff94e4d52bd7
+	github.com/xmx/aegis-common v0.0.0-20251126094553-533cd94c9558
+	github.com/xmx/aegis-control v0.0.0-20251126124924-52bf61d53653
 	github.com/xmx/metrics v0.0.0-20251124113446-33b980340aea
 	go.mongodb.org/mongo-driver/v2 v2.4.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -22,7 +22,7 @@ require (
 	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lmittmann/tint v1.1.2 // indirect
-	github.com/quic-go/quic-go v0.57.0 // indirect
+	github.com/quic-go/quic-go v0.57.1 // indirect
 	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect

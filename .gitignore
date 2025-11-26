@@ -27,11 +27,8 @@ go.work.sum
 .DS_Store
 
 # config file
-resources/config/*
-!resources/config/application-example.js
-!resources/config/application-example.json
-!resources/config/application-example.jsonc
-!resources/config/README.md
+resources/config/*.json
+resources/config/*.jsonc
 
 main/main
 resources/tls/*
