@@ -12,7 +12,9 @@ import (
 	"github.com/xmx/metrics"
 )
 
-func NewMetrics(this *model.Broker, cfg func(ctx context.Context) (pushURL string, opts *metrics.PushOptions, err error)) cronv3.Tasker {
+type MetricsConfigFunc func(ctx context.Context) (pushURL string, opts *metrics.PushOptions, err error)
+
+func NewMetrics(this *model.Broker, cfg MetricsConfigFunc) cronv3.Tasker {
 	id := this.ID.Hex()
 	name := this.Name
 	hostname, _ := os.Hostname()
@@ -25,7 +27,7 @@ func NewMetrics(this *model.Broker, cfg func(ctx context.Context) (pushURL strin
 }
 
 type metricsTask struct {
-	cfg   func(ctx context.Context) (pushURL string, opts *metrics.PushOptions, err error)
+	cfg   MetricsConfigFunc
 	label string
 }
 

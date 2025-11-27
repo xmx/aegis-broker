@@ -33,8 +33,8 @@ type transmit struct {
 func (t *transmit) Info() cronv3.TaskInfo {
 	return cronv3.TaskInfo{
 		Name:      "记录通道传输字节数",
-		Timeout:   10 * time.Minute,
-		CronSched: cronv3.NewInterval(10 * time.Second),
+		Timeout:   5 * time.Minute,
+		CronSched: cronv3.NewInterval(time.Minute),
 	}
 }
 
@@ -111,6 +111,9 @@ func (t *transmit) bulkWrite(ctx context.Context, mods []mongo.WriteModel) error
 	opt := options.BulkWrite().SetOrdered(false)
 	repo := t.repo.Agent()
 	_, err := repo.BulkWrite(ctx, mods, opt)
+
+	// aegis_tunnel_receive_bytes{}
+	// aegis_tunnel_transmit_bytes{}
 
 	return err
 }

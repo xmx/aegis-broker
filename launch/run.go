@@ -220,9 +220,10 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	cronTasks := []cronv3.Tasker{
+		crontab.NewMetrics(curBroker, victoriaMetricsSvc.PushConfig),
 		crontab.NewNetwork(brokerID, repoAll),
 		crontab.NewTransmit(brokerID, mux, hub, repoAll),
-		crontab.NewMetrics(curBroker, victoriaMetricsSvc.PushConfig),
+		crontab.NewTransmitMetrics(curBroker, mux, hub, victoriaMetricsSvc.PushConfig),
 	}
 	for _, task := range cronTasks {
 		_, _ = crond.AddTask(task)
