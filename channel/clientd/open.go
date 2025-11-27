@@ -86,16 +86,18 @@ func (bc *brokerClient) open(req *authRequest, timeout time.Duration) (tunopen.M
 	}
 
 	laddr, raddr := mux.Addr(), mux.RemoteAddr()
+	outboundIP := bc.detectOutboundIP(laddr, raddr)
+	req.Inet = outboundIP.String()
 	protocol, subprotocol := mux.Protocol()
 	attrs := []any{
 		slog.Any("local_addr", laddr),
 		slog.Any("remote_addr", raddr),
 		slog.Any("protocol", protocol),
 		slog.Any("subprotocol", subprotocol),
+		slog.Any("outbound_ip", outboundIP),
 	}
 	bc.log().Info("基础网络连接成功", attrs...)
 
-	req.Inet = raddr.String()
 	res, err1 := bc.authentication(mux, req, timeout)
 	if err1 != nil {
 		_ = mux.Close()
@@ -169,12 +171,20 @@ func (bc *brokerClient) log() *slog.Logger {
 	return slog.Default()
 }
 
-func (*brokerClient) checkIP(a net.Addr) net.IP {
-	switch v := a.(type) {
-	case *net.TCPAddr:
-		return v.IP
-	case *net.UDPAddr:
-		return v.IP
+func (*brokerClient) detectOutboundIP(laddr, raddr net.Addr) net.IP {
+	if addr, ok := laddr.(*net.TCPAddr); ok {
+		return addr.IP
+	}
+
+	dest := raddr.String()
+	conn, err := net.DialTimeout("udp", dest, time.Second)
+	if err != nil {
+		return net.IPv4zero
+	}
+	_ = conn.Close()
+	saddr := conn.LocalAddr()
+	if addr, ok := saddr.(*net.UDPAddr); ok {
+		return addr.IP
 	}
 
 	return net.IPv4zero
