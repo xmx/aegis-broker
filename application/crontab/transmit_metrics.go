@@ -69,7 +69,7 @@ func (t *transmitMetrics) writeAgent(w io.Writer) {
 		label := t.getAgentLabel(p)
 		rxName := fmt.Sprintf("tunnel_receive_bytes{%s}", label)
 		txName := fmt.Sprintf("tunnel_transmit_bytes{%s}", label)
-		rx, tx := t.mux.Transferred()
+		rx, tx := p.Muxer().Transferred()
 
 		// 在 broker 端统计 agent 的传输数据，rx tx 要互换
 		metrics.WriteCounterUint64(w, rxName, tx)
