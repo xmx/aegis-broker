@@ -52,6 +52,8 @@ github.com/xmx/aegis-control v0.0.0-20251125091028-ff94e4d52bd7 h1:UFGK8Ib/W8/rY
 github.com/xmx/aegis-control v0.0.0-20251125091028-ff94e4d52bd7/go.mod h1:EEDuWlIg8x4TrF9KgburWfh7FOomZ+43GBQFe6/Ide8=
 github.com/xmx/aegis-control v0.0.0-20251126124924-52bf61d53653 h1:DCKxYWJ4I427ih8YlXNLTPL8OBZoJGYb7Da1Ye1vfJU=
 github.com/xmx/aegis-control v0.0.0-20251126124924-52bf61d53653/go.mod h1:wI+zTqAOkcuQ7drTuMVJ/X4Ma+Ip0JmU3iAa6rY/58Q=
+github.com/xmx/aegis-control v0.0.0-20251127013230-ec1baae0f69e h1:HT4RthDX9Zp5UV3GohcwtBtGiSGb8KXw9fwwxInrM7M=
+github.com/xmx/aegis-control v0.0.0-20251127013230-ec1baae0f69e/go.mod h1:wI+zTqAOkcuQ7drTuMVJ/X4Ma+Ip0JmU3iAa6rY/58Q=
 github.com/xmx/metrics v0.0.0-20251124113446-33b980340aea h1:99x5b4jI+jRWekdq51qs6XEjCVFwd9A4XL7YSX3+N2Q=
 github.com/xmx/metrics v0.0.0-20251124113446-33b980340aea/go.mod h1:BUJkJMiANnpHamEWID9fXhAOPldu3e1S4R+3t6TUy60=
 github.com/xtaci/smux v1.5.44 h1:7T61zLfFX1jokXj6d+lPaxHnVwgYiJ7EN94DAudKqpg=

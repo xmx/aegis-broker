@@ -111,7 +111,8 @@ func (as *agentServer) authentication(mux tunopen.Muxer, timeout time.Duration) 
 		return nil, nil, false
 	}
 
-	peer := linkhub.NewPeer(agt.ID, mux)
+	pinf := linkhub.Info{Inet: req.Inet, Goos: req.Goos, Goarch: req.Goarch, Hostname: req.Hostname}
+	peer := linkhub.NewPeer(agt.ID, mux, pinf)
 	if !as.opt.huber.Put(peer) {
 		as.log().Warn("agent 重复上线（连接池检查）", attrs...)
 		_ = as.writeError(sig, http.StatusConflict, nil)

@@ -2,7 +2,9 @@ package crontab
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/xmx/aegis-common/library/cronv3"
@@ -11,15 +13,20 @@ import (
 )
 
 func NewMetrics(this *model.Broker, cfg func(ctx context.Context) (pushURL string, opts *metrics.PushOptions, err error)) cronv3.Tasker {
+	id := this.ID.Hex()
+	name := this.Name
+	hostname, _ := os.Hostname()
+	label := fmt.Sprintf(`instance="%s",instance_type="broker",instance_name="%s",hostname="%s"`, id, name, hostname)
+
 	return &metricsTask{
-		this: this,
-		cfg:  cfg,
+		cfg:   cfg,
+		label: label,
 	}
 }
 
 type metricsTask struct {
-	this *model.Broker
-	cfg  func(ctx context.Context) (pushURL string, opts *metrics.PushOptions, err error)
+	cfg   func(ctx context.Context) (pushURL string, opts *metrics.PushOptions, err error)
+	label string
 }
 
 func (mt *metricsTask) Info() cronv3.TaskInfo {
@@ -35,8 +42,7 @@ func (mt *metricsTask) Call(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	label := `instance_type="aegis-broker",instance="` + mt.this.ID.Hex() + `",instance_name="` + mt.this.Name + `"`
-	opts.ExtraLabels = label
+	opts.ExtraLabels = mt.label
 
 	return metrics.PushMetricsExt(ctx, pushURL, mt.defaultWrite, opts)
 }

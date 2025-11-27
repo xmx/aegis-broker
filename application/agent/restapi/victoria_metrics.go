@@ -2,6 +2,7 @@ package restapi
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/xgfone/ship/v5"
 	"github.com/xmx/aegis-broker/application/business"
@@ -40,8 +41,12 @@ func (vm *VictoriaMetrics) pushConfigFunc(peer linkhub.Peer) func(ctx context.Co
 		if err != nil {
 			return "", nil, err
 		}
-		labels := `instance_type="aegis-agent",instance="` + peer.ID().Hex() + `"`
-		opts.ExtraLabels = labels
+
+		id := peer.ID().Hex()
+		inf := peer.Info()
+		pattern := `instance="%s",instance_type="agent",goos="%s",goarch="%s",hostname="%s",inet="%s"`
+		label := fmt.Sprintf(pattern, id, inf.Goos, inf.Goarch, inf.Hostname, inf.Inet)
+		opts.ExtraLabels = label
 
 		return pushURL, opts, nil
 	}
