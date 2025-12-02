@@ -110,7 +110,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	log.Info("数据库连接成功")
 
 	// 查询自己的配置
-	repoAll := repository.NewAll(db)
+	repoAll := repository.NewAll(db, log)
 	curBroker, err := repoAll.Broker().GetBySecret(ctx, hideCfg.Secret)
 	if err != nil {
 		return err

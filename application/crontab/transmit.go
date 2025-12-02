@@ -112,8 +112,5 @@ func (t *transmit) bulkWrite(ctx context.Context, mods []mongo.WriteModel) error
 	repo := t.repo.Agent()
 	_, err := repo.BulkWrite(ctx, mods, opt)
 
-	// aegis_tunnel_receive_bytes{}
-	// aegis_tunnel_transmit_bytes{}
-
 	return err
 }

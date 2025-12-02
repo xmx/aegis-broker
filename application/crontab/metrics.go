@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/xmx/aegis-common/library/cronv3"
@@ -18,7 +19,10 @@ func NewMetrics(this *model.Broker, cfg MetricsConfigFunc) cronv3.Tasker {
 	id := this.ID.Hex()
 	name := this.Name
 	hostname, _ := os.Hostname()
-	label := fmt.Sprintf(`instance="%s",instance_type="broker",instance_name="%s",hostname="%s"`, id, name, hostname)
+	goos := runtime.GOOS
+	goarch := runtime.GOARCH
+
+	label := fmt.Sprintf(`instance="%s",instance_type="broker",instance_name="%s",hostname="%s",goos="%s",goarch="%s"`, id, name, hostname, goos, goarch)
 
 	return &metricsTask{
 		cfg:   cfg,
