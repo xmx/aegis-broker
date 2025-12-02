@@ -7,7 +7,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/xgfone/ship/v5 v5.3.2
 	github.com/xmx/aegis-common v0.0.0-20251126094553-533cd94c9558
-	github.com/xmx/aegis-control v0.0.0-20251127013230-ec1baae0f69e
+	github.com/xmx/aegis-control v0.0.0-20251202021740-7520bb0854dc
 	github.com/xmx/metrics v0.0.0-20251124113446-33b980340aea
 	go.mongodb.org/mongo-driver/v2 v2.4.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -19,7 +19,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.28.0 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
-	github.com/klauspost/compress v1.18.1 // indirect
+	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lmittmann/tint v1.1.2 // indirect
 	github.com/quic-go/quic-go v0.57.1 // indirect
