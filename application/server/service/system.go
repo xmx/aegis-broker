@@ -61,6 +61,19 @@ func (syt *System) Upgrade(ctx context.Context) (bool, error) {
 	attrs = append(attrs, "latest", latest)
 	syt.log.Info("找到了新的版本", attrs)
 
+	settingRepo := syt.repo.Setting()
+	setting, err := settingRepo.Get(ctx)
+	if err != nil {
+		attrs = append(attrs, "error", err)
+		syt.log.Warn("缺少全局配置（setting）", attrs...)
+		return false, nil
+	}
+	addresses := setting.Exposes.Addresses()
+	if len(addresses) == 0 {
+		syt.log.Warn("全局配置缺少接入点（setting.exposes）", attrs...)
+		return false, nil
+	}
+
 	return true, nil
 }
 
@@ -91,7 +104,7 @@ func (syt *System) name(ctx context.Context, release *model.BrokerRelease) error
 	}
 	defer stm.Close()
 
-	binary, err := os.OpenFile(binaryName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+	binary, err := os.OpenFile(binaryName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o755)
 	if err != nil {
 		attrs = append(attrs, "error", err)
 		syt.log.Warn("创建新文件出错", attrs...)
