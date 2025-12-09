@@ -142,7 +142,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	loadCert := repoAll.Certificate().Enables
-	certPool := tlscert.NewCertPool(loadCert, log)
+	certPool := tlscert.NewCertPool(loadCert, false, log)
 
 	brokerID := curBroker.ID
 	agentSvc := expservice.NewAgent(repoAll, log)
