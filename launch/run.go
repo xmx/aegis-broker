@@ -54,7 +54,7 @@ func Run(ctx context.Context, cfg string) error {
 
 func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	consoleOut := logger.NewTint(os.Stdout, nil)
-	logh := logger.NewHandler(consoleOut)
+	logh := logger.NewMultiHandler(consoleOut)
 	log := slog.New(logh)
 
 	hideCfg, err := crd.Read()
