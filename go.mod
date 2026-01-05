@@ -6,8 +6,8 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/xgfone/ship/v5 v5.3.2
-	github.com/xmx/aegis-common v0.0.0-20251230100407-db133d07159e
-	github.com/xmx/aegis-control v0.0.0-20251230014141-53254b01a261
+	github.com/xmx/aegis-common v0.0.0-20260105102527-ed5e0c5f9650
+	github.com/xmx/aegis-control v0.0.0-20260105102526-bed2cd8dae22
 	github.com/xmx/metrics v0.0.0-20251124113446-33b980340aea
 	go.mongodb.org/mongo-driver/v2 v2.4.1
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
