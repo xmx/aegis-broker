@@ -18,7 +18,7 @@ func (sm *safeMuxer) Addr() net.Addr                             { return sm.loa
 func (sm *safeMuxer) Open(ctx context.Context) (net.Conn, error) { return sm.load().Open(ctx) }
 func (sm *safeMuxer) RemoteAddr() net.Addr                       { return sm.load().RemoteAddr() }
 func (sm *safeMuxer) Protocol() (string, string)                 { return sm.load().Protocol() }
-func (sm *safeMuxer) Transferred() (rx, tx uint64)               { return sm.load().Transferred() }
+func (sm *safeMuxer) Traffic() (rx, tx uint64)                   { return sm.load().Traffic() }
 
 func (sm *safeMuxer) store(mux tunopen.Muxer) {
 	if mux == nil {

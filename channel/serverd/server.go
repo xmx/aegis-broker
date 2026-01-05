@@ -210,7 +210,7 @@ func (as *agentServer) checkout(req *authRequest, timeout time.Duration) (*model
 func (as *agentServer) disconnected(peer linkhub.Peer, timeout time.Duration) {
 	now := time.Now()
 	id := peer.ID()
-	rx, tx := peer.Muxer().Transferred()
+	rx, tx := peer.Muxer().Traffic()
 	update := bson.M{"$set": bson.M{
 		"status": false, "tunnel_stat.disconnected_at": now,
 		"tunnel_stat.receive_bytes": tx, "tunnel_stat.transmit_bytes": rx,

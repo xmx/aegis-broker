@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/robfig/cron/v3"
 	"github.com/xmx/aegis-common/library/cronv3"
 	"github.com/xmx/aegis-common/tunnel/tunopen"
 	"github.com/xmx/aegis-control/datalayer/model"
@@ -40,7 +41,7 @@ func (t *transmitMetrics) Info() cronv3.TaskInfo {
 	return cronv3.TaskInfo{
 		Name:      "上报通道传输数据量指标",
 		Timeout:   10 * time.Second,
-		CronSched: cronv3.NewInterval(10 * time.Second),
+		CronSched: cron.Every(10 * time.Second),
 	}
 }
 
@@ -59,7 +60,7 @@ func (t *transmitMetrics) write(w io.Writer) {
 }
 
 func (t *transmitMetrics) writeBroker(w io.Writer) {
-	rx, tx := t.mux.Transferred()
+	rx, tx := t.mux.Traffic()
 	rxName := fmt.Sprintf("tunnel_receive_bytes{%s}", t.brokLabel)
 	txName := fmt.Sprintf("tunnel_transmit_bytes{%s}", t.brokLabel)
 	metrics.WriteCounterUint64(w, rxName, rx)
@@ -71,7 +72,7 @@ func (t *transmitMetrics) writeAgent(w io.Writer) {
 		label := t.getAgentLabel(p)
 		rxName := fmt.Sprintf("tunnel_receive_bytes{%s}", label)
 		txName := fmt.Sprintf("tunnel_transmit_bytes{%s}", label)
-		rx, tx := p.Muxer().Transferred()
+		rx, tx := p.Muxer().Traffic()
 
 		// 在 broker 端统计 agent 的传输数据，rx tx 要互换
 		metrics.WriteCounterUint64(w, rxName, tx)

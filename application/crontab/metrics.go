@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/robfig/cron/v3"
 	"github.com/xmx/aegis-common/library/cronv3"
 	"github.com/xmx/aegis-control/datalayer/model"
 	"github.com/xmx/metrics"
@@ -39,7 +40,7 @@ func (mt *metricsTask) Info() cronv3.TaskInfo {
 	return cronv3.TaskInfo{
 		Name:      "上报系统指标",
 		Timeout:   5 * time.Second,
-		CronSched: cronv3.NewInterval(5 * time.Second),
+		CronSched: cron.Every(5 * time.Second),
 	}
 }
 

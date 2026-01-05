@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/robfig/cron/v3"
 	"github.com/xmx/aegis-common/library/cronv3"
 	"github.com/xmx/aegis-common/system/network"
 	"github.com/xmx/aegis-control/datalayer/repository"
@@ -27,7 +28,7 @@ func (n *networkCard) Info() cronv3.TaskInfo {
 	return cronv3.TaskInfo{
 		Name:      "上报网卡信息",
 		Timeout:   10 * time.Second,
-		CronSched: cronv3.NewInterval(time.Hour),
+		CronSched: cron.Every(time.Hour),
 	}
 }
 

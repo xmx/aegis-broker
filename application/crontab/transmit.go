@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/robfig/cron/v3"
 	"github.com/xmx/aegis-common/library/cronv3"
 	"github.com/xmx/aegis-common/tunnel/tunopen"
 	"github.com/xmx/aegis-control/datalayer/repository"
@@ -34,7 +35,7 @@ func (t *transmit) Info() cronv3.TaskInfo {
 	return cronv3.TaskInfo{
 		Name:      "记录通道传输字节数",
 		Timeout:   5 * time.Minute,
-		CronSched: cronv3.NewInterval(time.Minute),
+		CronSched: cron.Every(time.Minute),
 	}
 }
 
@@ -51,7 +52,7 @@ func (t *transmit) Call(ctx context.Context) error {
 }
 
 func (t *transmit) broker(ctx context.Context) error {
-	rx, tx := t.mux.Transferred()
+	rx, tx := t.mux.Traffic()
 	update := bson.M{"$set": bson.M{
 		"tunnel_stat.receive_bytes":  rx,
 		"tunnel_stat.transmit_bytes": tx,
@@ -71,7 +72,7 @@ func (t *transmit) agents(ctx context.Context) []error {
 	for _, p := range t.hub.Peers() {
 		id := p.ID()
 		mux := p.Muxer()
-		rx, tx := mux.Transferred()
+		rx, tx := mux.Traffic()
 		// 在 broker 端统计 agent 的传输数据，rx tx 要互换
 		update := bson.M{"$set": bson.M{
 			"tunnel_stat.receive_bytes":  tx,
