@@ -1,6 +1,6 @@
 module github.com/xmx/aegis-broker
 
-go 1.26rc1
+go 1.25.5
 
 require (
 	github.com/gorilla/websocket v1.5.3
