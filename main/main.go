@@ -6,21 +6,17 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime/debug"
-	"syscall"
 
 	"github.com/xmx/aegis-broker/launch"
 	"github.com/xmx/aegis-common/banner"
 )
 
 func main() {
-	args := os.Args
-	name := filepath.Base(args[0])
-	set := flag.NewFlagSet(name, flag.ExitOnError)
+	set := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	cfg := set.String("c", "", "配置文件")
 	ver := set.Bool("v", false, "打印版本")
-	_ = set.Parse(args[1:])
+	_ = set.Parse(os.Args[1:])
 	if _, _ = banner.ANSI(os.Stdout); *ver {
 		return
 	}
@@ -33,13 +29,15 @@ func main() {
 		}
 	}
 
-	signals := []os.Signal{syscall.SIGTERM, syscall.SIGHUP, syscall.SIGINT, syscall.SIGQUIT}
-	ctx, cancel := signal.NotifyContext(context.Background(), signals...)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
+	var attrs []any
 	if err := launch.Run(ctx, *cfg); err != nil {
-		slog.Error("服务运行错误", slog.Any("error", err))
-	} else {
-		slog.Info("服务停止运行")
+		attrs = append(attrs, "error", err)
 	}
+	if err := context.Cause(ctx); err != nil {
+		attrs = append(attrs, "cause", err)
+	}
+	slog.Warn("服务停止运行", attrs...)
 }
