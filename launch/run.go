@@ -145,7 +145,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	loadCert := repoAll.Certificate().Enables
-	certPool := tlscert.NewCertPool(loadCert, false, log)
+	certPool := tlscert.NewCertPool(loadCert, true, log)
 
 	brokerID := curBroker.ID
 	agentSvc := expservice.NewAgent(repoAll, log)
@@ -159,7 +159,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		linkhub.NewSuffixDialer(muxproto.AgentHostSuffix, hub),
 	}
 	dualDialer := muxproto.NewFirstMatchDialer(tunDialers, netDialer)
-	_ = &http.Client{Transport: &http.Transport{DialContext: dualDialer.DialContext}}
+	httpCli := &http.Client{Transport: &http.Transport{DialContext: dualDialer.DialContext}}
 
 	agtSH := ship.Default()
 	agtSH.NotFound = shipx.NotFound
@@ -168,14 +168,18 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	agtSH.Logger = shipLog
 
 	tunSrvOpts := serverd.Options{
-		Handler: agtSH,
-		Huber:   hub,
-		Logger:  log,
-		Valid:   func(v *serverd.AuthRequest) error { return valid.Validate(v) },
-		Timeout: 30 * time.Second,
-		Context: ctx,
+		CurrentBroker: serverd.CurrentBroker{
+			ID:   brokerID,
+			Name: curBroker.Name,
+		},
+		Handler:   agtSH,
+		Huber:     hub,
+		Logger:    log,
+		Validator: valid.Validate,
+		Timeout:   30 * time.Second,
+		Context:   ctx,
 	}
-	tunAccept := serverd.New(curBroker, repoAll, tunSrvOpts)
+	tunAccept := serverd.New(repoAll, tunSrvOpts)
 	exposeAPIs := []shipx.RouteRegister{
 		exprestapi.NewTunnel(tunAccept),
 	}
@@ -226,6 +230,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	cronTasks := []cronv3.Tasker{
+		crontab.NewHealth(httpCli),
 		crontab.NewMetrics(curBroker, victoriaMetricsSvc.PushConfig),
 		crontab.NewNetwork(brokerID, repoAll),
 		crontab.NewTransmit(brokerID, mux, hub, repoAll),

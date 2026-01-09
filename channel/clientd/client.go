@@ -76,6 +76,7 @@ func (bc *brokerClient) openLoop() (muxconn.Muxer, *AuthConfig, error) {
 		}
 
 		du := bc.retryInterval(tires)
+		attrs = append(attrs, "sleep", du)
 		bc.log().Warn("通道连接失败，稍后重试", attrs...)
 
 		if err := bc.sleep(du); err != nil {
