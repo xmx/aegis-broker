@@ -22,6 +22,7 @@ import (
 	"github.com/xmx/aegis-broker/channel/clientd"
 	"github.com/xmx/aegis-broker/channel/serverd"
 	"github.com/xmx/aegis-broker/config"
+	"github.com/xmx/aegis-common/banner"
 	"github.com/xmx/aegis-common/library/cronv3"
 	"github.com/xmx/aegis-common/library/validation"
 	"github.com/xmx/aegis-common/logger"
@@ -94,6 +95,10 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		Secret:  hideCfg.Secret,
 		Semver:  hideCfg.Semver,
 		Handler: srvSH,
+	}
+	if tunCliOpt.Semver == "" {
+		info := banner.SelfInfo()
+		tunCliOpt.Semver = info.Version
 	}
 	mux, authCfg, err := clientd.Open(dialCfg, tunCliOpt)
 	if err != nil {
