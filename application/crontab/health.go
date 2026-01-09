@@ -23,8 +23,8 @@ type healthPing struct {
 func (hp *healthPing) Info() cronv3.TaskInfo {
 	return cronv3.TaskInfo{
 		Name:      "发送心跳包",
-		Timeout:   3 * time.Second,
-		CronSched: cron.Every(5 * time.Second),
+		Timeout:   5 * time.Second,
+		CronSched: cron.Every(time.Minute),
 	}
 }
 
