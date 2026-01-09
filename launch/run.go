@@ -25,18 +25,18 @@ import (
 	"github.com/xmx/aegis-common/library/cronv3"
 	"github.com/xmx/aegis-common/library/validation"
 	"github.com/xmx/aegis-common/logger"
+	"github.com/xmx/aegis-common/muxlink/muxconn"
+	"github.com/xmx/aegis-common/muxlink/muxproto"
 	"github.com/xmx/aegis-common/profile"
 	"github.com/xmx/aegis-common/shipx"
 	"github.com/xmx/aegis-common/stegano"
-	"github.com/xmx/aegis-common/tunnel/tunconst"
-	"github.com/xmx/aegis-common/tunnel/tundial"
-	"github.com/xmx/aegis-common/tunnel/tunopen"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"github.com/xmx/aegis-control/linkhub"
 	"github.com/xmx/aegis-control/mongodb"
 	"github.com/xmx/aegis-control/quick"
 	"github.com/xmx/aegis-control/tlscert"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"golang.org/x/net/quic"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -53,8 +53,8 @@ func Run(ctx context.Context, cfg string) error {
 }
 
 func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
-	consoleOut := logger.NewTint(os.Stdout, nil)
-	logh := logger.NewMultiHandler(consoleOut)
+	logOpts := &slog.HandlerOptions{AddSource: true, Level: slog.LevelDebug}
+	logh := logger.NewMultiHandler(logger.NewTint(os.Stdout, logOpts))
 	log := slog.New(logh)
 
 	hideCfg, err := crd.Read()
@@ -83,26 +83,29 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	srvSH.Validator = valid
 	srvSH.Logger = shipLog
 
-	dialCfg := tunopen.Config{
+	dialCfg := muxconn.DialConfig{
 		Protocols:  hideCfg.Protocols,
 		Addresses:  hideCfg.Addresses,
 		PerTimeout: 10 * time.Second,
-		Parent:     ctx,
+		Logger:     log,
+		Context:    ctx,
 	}
-	clientdOpt := clientd.NewOption().Handler(srvSH).Logger(log)
-	mux, initialCfg, err := clientd.Open(dialCfg, hideCfg.Secret, clientdOpt)
+	tunCliOpt := clientd.Options{
+		Secret:  hideCfg.Secret,
+		Semver:  hideCfg.Semver,
+		Handler: srvSH,
+	}
+	mux, authCfg, err := clientd.Open(dialCfg, tunCliOpt)
 	if err != nil {
 		return err
 	}
 
-	log.Info("向中心端请求初始配置")
-	mongoURI := initialCfg.URI
-	log.Debug("开始连接数据库", slog.Any("mongo_uri", mongoURI))
+	log.Debug("开始连接数据库...")
 	mongoLogOpt := options.Logger().
 		SetSink(logger.NewSink(logh)).
 		SetComponentLevel(options.LogComponentCommand, options.LogLevelDebug)
 	mongoOpt := options.Client().SetLoggerOptions(mongoLogOpt)
-	db, err := mongodb.Open(mongoURI, mongoOpt)
+	db, err := mongodb.Open(authCfg.URI, mongoOpt)
 	if err != nil {
 		log.Error("数据库连接错误", slog.Any("error", err))
 		return err
@@ -120,10 +123,10 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 
 	logLevel := new(slog.LevelVar)
 	_ = logLevel.UnmarshalText([]byte(lc.Level))
-	logOpt := &slog.HandlerOptions{AddSource: true, Level: logLevel}
+	logOpts.Level = logLevel
 	logh.Replace()
 	if lc.Console {
-		tint := logger.NewTint(os.Stdout, logOpt)
+		tint := logger.NewTint(os.Stdout, logOpts)
 		logh.Attach(tint)
 	}
 	if fname := lc.Filename; fname != "" {
@@ -137,7 +140,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		}
 		defer lumber.Close()
 
-		lh := slog.NewJSONHandler(lumber, logOpt)
+		lh := slog.NewJSONHandler(lumber, logOpts)
 		logh.Attach(lh)
 	}
 
@@ -151,11 +154,11 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 
 	hub := linkhub.NewHub(4096)
 	netDialer := &net.Dialer{Timeout: 30 * time.Second}
-	tunDialers := []tundial.ContextDialer{
-		tundial.NewMatchHostDialer(tunconst.ServerHost, mux),
-		linkhub.NewSuffixDialer(tunconst.AgentHostSuffix, hub),
+	tunDialers := []muxproto.Dialer{
+		muxproto.NewMatchHostDialer(muxproto.ServerHost, mux),
+		linkhub.NewSuffixDialer(muxproto.AgentHostSuffix, hub),
 	}
-	dualDialer := tundial.NewFirstMatchDialer(tunDialers, netDialer)
+	dualDialer := muxproto.NewFirstMatchDialer(tunDialers, netDialer)
 	_ = &http.Client{Transport: &http.Transport{DialContext: dualDialer.DialContext}}
 
 	agtSH := ship.Default()
@@ -164,14 +167,17 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	agtSH.Validator = valid
 	agtSH.Logger = shipLog
 
-	serverdOpt := serverd.NewOption().
-		Handler(agtSH).
-		Valid(valid.Validate).
-		Logger(log).
-		Huber(hub)
-	tunnelAccept := serverd.New(curBroker, repoAll, serverdOpt)
+	tunSrvOpts := serverd.Options{
+		Handler: agtSH,
+		Huber:   hub,
+		Logger:  log,
+		Valid:   func(v *serverd.AuthRequest) error { return valid.Validate(v) },
+		Timeout: 30 * time.Second,
+		Context: ctx,
+	}
+	tunAccept := serverd.New(curBroker, repoAll, tunSrvOpts)
 	exposeAPIs := []shipx.RouteRegister{
-		exprestapi.NewTunnel(tunnelAccept),
+		exprestapi.NewTunnel(tunAccept),
 	}
 
 	srvSystemSvc := srvservice.NewSystem(repoAll, hideCfg, bcfg, log)
@@ -241,10 +247,10 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		Handler:   exposeSH,
 		TLSConfig: httpTLS,
 	}
-	quicSrv := &quick.QUICGo{
-		Addr:      listenAddr,
-		Handler:   tunnelAccept,
-		TLSConfig: quicTLS,
+	quicSrv := &quick.QUICx{
+		Addr:       listenAddr,
+		Accept:     tunAccept,
+		QUICConfig: &quic.Config{TLSConfig: quicTLS},
 	}
 
 	errs := make(chan error, 2)
@@ -263,13 +269,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		ccancel()
 	}
 
-	if err != nil {
-		log.Error("程序运行错误", slog.Any("error", err))
-	} else {
-		log.Warn("程序结束运行")
-	}
-
-	return nil
+	return err
 }
 
 func listenHTTP(errs chan<- error, srv *http.Server, log *slog.Logger) {

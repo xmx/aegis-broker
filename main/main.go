@@ -32,12 +32,8 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	var attrs []any
-	if err := launch.Run(ctx, *cfg); err != nil {
-		attrs = append(attrs, "error", err)
-	}
-	if err := context.Cause(ctx); err != nil {
-		attrs = append(attrs, "cause", err)
-	}
-	slog.Warn("服务停止运行", attrs...)
+	err := launch.Run(ctx, *cfg)
+	cause := context.Cause(ctx)
+
+	slog.Warn("服务停止运行", "error", err, "cause", cause)
 }

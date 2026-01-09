@@ -13,12 +13,11 @@ import (
 	"github.com/xgfone/ship/v5"
 	"github.com/xmx/aegis-broker/application/errcode"
 	"github.com/xmx/aegis-common/library/httpkit"
+	"github.com/xmx/aegis-common/muxlink/muxproto"
 	"github.com/xmx/aegis-common/problem"
-	"github.com/xmx/aegis-common/tunnel/tunconst"
-	"github.com/xmx/aegis-common/tunnel/tundial"
 )
 
-func NewReverse(dial tundial.ContextDialer) *Reverse {
+func NewReverse(dial muxproto.Dialer) *Reverse {
 	trip := &http.Transport{DialContext: dial.DialContext}
 	resv := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
@@ -41,7 +40,7 @@ func NewReverse(dial tundial.ContextDialer) *Reverse {
 
 			if ae, ok := err.(*net.OpError); ok {
 				addr := ae.Addr.String()
-				nodeID, _, found := strings.Cut(addr, tunconst.AgentHostSuffix)
+				nodeID, _, found := strings.Cut(addr, muxproto.AgentHostSuffix)
 				if found {
 					err = errcode.FmtAgentDisconnect.Fmt(nodeID)
 				}
@@ -91,7 +90,7 @@ func (rvs *Reverse) serve(c *ship.Context) error {
 		pth += "/"
 	}
 
-	destURL := tunconst.BrokerToAgent(id, pth)
+	destURL := muxproto.BrokerToAgentURL(id, pth)
 	destURL.RawQuery = reqURL.RawQuery
 
 	if c.IsWebSocket() {

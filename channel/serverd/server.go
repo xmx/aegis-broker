@@ -7,11 +7,11 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
-	"github.com/xmx/aegis-common/options"
-	"github.com/xmx/aegis-common/tunnel/tunconst"
-	"github.com/xmx/aegis-common/tunnel/tunopen"
+	"github.com/xmx/aegis-common/muxlink/muxconn"
+	"github.com/xmx/aegis-common/muxlink/muxproto"
 	"github.com/xmx/aegis-control/datalayer/model"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"github.com/xmx/aegis-control/linkhub"
@@ -19,33 +19,34 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-func New(cur *model.Broker, repo repository.All, opts ...options.Lister[option]) tunconst.Handler {
-	opts = append(opts, fallbackOptions())
-	opt := options.Eval[option](opts...)
-
+func New(cur *model.Broker, repo repository.All, opts Options) muxproto.MUXAccepter {
 	return &agentServer{
 		repo: repo,
 		cur:  cur,
-		opt:  opt,
+		opt:  opts,
 	}
 }
 
 type agentServer struct {
 	repo repository.All
 	cur  *model.Broker // 当前 broker 的信息
-	opt  option
+	opt  Options
 }
 
-func (as *agentServer) Handle(mux tunopen.Muxer) {
-	//goland:noinspection GoUnhandledErrorResult
+// AcceptMUX 处理连接。
+//
+//goland:noinspection GoUnhandledErrorResult
+func (as *agentServer) AcceptMUX(mux muxconn.Muxer) {
 	defer mux.Close()
 
-	if !as.opt.allow() {
-		as.log().Warn("限流器抑制 agent 上线")
+	raddr := mux.RemoteAddr()
+	attrs := []any{"remote_addr", raddr}
+	if !as.opt.allowed(mux) {
+		as.opt.log().Warn("限流器抑制上线", attrs...)
 		return
 	}
 
-	timeout := as.opt.timeout
+	timeout := as.opt.Timeout
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
@@ -62,7 +63,9 @@ func (as *agentServer) Handle(mux tunopen.Muxer) {
 
 // authentication 节点认证。
 // 客户端主动建立一条虚拟子流连接用于交换认证信息，认证后改子流关闭，后续子流即为业务流。
-func (as *agentServer) authentication(mux tunopen.Muxer, timeout time.Duration) (*authRequest, linkhub.Peer, bool) {
+//
+//goland:noinspection GoUnhandledErrorResult
+func (as *agentServer) authentication(mux muxconn.Muxer, timeout time.Duration) (*AuthRequest, linkhub.Peer, bool) {
 	protocol, subprotocol := mux.Protocol()
 	laddr, raddr := mux.Addr(), mux.RemoteAddr()
 	attrs := []any{
@@ -70,51 +73,54 @@ func (as *agentServer) authentication(mux tunopen.Muxer, timeout time.Duration) 
 		slog.Any("local_addr", laddr), slog.Any("remote_addr", raddr),
 	}
 
-	// 设置超时主动断开，防止恶意客户端一直不建立认证连接。
-	timer := time.AfterFunc(timeout, func() { _ = mux.Close() })
+	safem := &mutuallyClose{mux: mux}
+	timer := time.AfterFunc(timeout, safem.close) // 设置超时主动断开，防止恶意客户端一直不建立认证连接。
 	defer timer.Stop()
 
 	sig, err := mux.Accept()
 	timer.Stop()
 	if err != nil {
-		as.log().Error("等待 agent 建立认证通道出错", "error", err)
+		as.opt.log().Error("等待 agent 建立认证通道出错", "error", err)
 		return nil, nil, false
 	}
 	defer sig.Close()
+	if safem.closed() {
+		return nil, nil, false
+	}
 
 	// 读取数据
 	now := time.Now()
 	_ = sig.SetDeadline(now.Add(timeout))
-	req := new(authRequest)
-	if err = tunopen.ReadAuth(sig, req); err != nil {
+	req := new(AuthRequest)
+	if err = muxproto.ReadJSON(sig, req); err != nil {
 		attrs = append(attrs, slog.Any("error", err))
-		as.log().Error("读取 agent 请求信息错误", attrs...)
+		as.opt.log().Error("读取 agent 请求信息错误", attrs...)
 		return nil, nil, false
 	}
 	attrs = append(attrs, slog.Any("auth_request", req))
 	if err = as.opt.valid(req); err != nil {
 		attrs = append(attrs, slog.Any("error", err))
-		as.log().Error("校验请求报文错误", attrs...)
+		as.opt.log().Error("校验请求报文错误", attrs...)
 		_ = as.writeError(sig, http.StatusBadRequest, err)
 		return nil, nil, false
 	}
 	agt, err := as.checkout(req, timeout)
 	if err != nil {
 		attrs = append(attrs, slog.Any("error", err))
-		as.log().Error("查询/新增 agent 错误", attrs...)
+		as.opt.log().Error("查询/新增 agent 错误", attrs...)
 		_ = as.writeError(sig, http.StatusInternalServerError, err)
 		return nil, nil, false
 	}
 	if agt.Status { // 节点已经在线了
-		as.log().Warn("agent 重复上线（数据库检查）", attrs...)
+		as.opt.log().Warn("agent 重复上线（数据库检查）", attrs...)
 		_ = as.writeError(sig, http.StatusConflict, nil)
 		return nil, nil, false
 	}
 
 	pinf := linkhub.Info{Inet: req.Inet, Goos: req.Goos, Goarch: req.Goarch, Hostname: req.Hostname}
 	peer := linkhub.NewPeer(agt.ID, mux, pinf)
-	if !as.opt.huber.Put(peer) {
-		as.log().Warn("agent 重复上线（连接池检查）", attrs...)
+	if !as.opt.Huber.Put(peer) {
+		as.opt.log().Warn("agent 重复上线（连接池检查）", attrs...)
 		_ = as.writeError(sig, http.StatusConflict, nil)
 		return nil, nil, false
 	}
@@ -122,9 +128,9 @@ func (as *agentServer) authentication(mux tunopen.Muxer, timeout time.Duration) 
 	// 成功报文
 	agtID := agt.ID
 	if err = as.writeSucceed(sig); err != nil {
-		as.opt.huber.DelByID(agtID)
+		as.opt.Huber.DelByID(agtID)
 		attrs = append(attrs, slog.Any("error", err))
-		as.log().Warn("写入成功报文错误", attrs...)
+		as.opt.log().Warn("写入成功报文错误", attrs...)
 		return nil, nil, false
 	}
 
@@ -138,6 +144,7 @@ func (as *agentServer) authentication(mux tunopen.Muxer, timeout time.Duration) 
 		RemoteAddr:  raddr.String(),
 	}
 	exeStat := &model.ExecuteStat{
+		Inet:       req.Inet,
 		Goos:       req.Goos,
 		Goarch:     req.Goarch,
 		PID:        req.PID,
@@ -145,7 +152,6 @@ func (as *agentServer) authentication(mux tunopen.Muxer, timeout time.Duration) 
 		Hostname:   req.Hostname,
 		Workdir:    req.Workdir,
 		Executable: req.Executable,
-		Username:   req.Username,
 	}
 	point := &model.AgentConnectedBroker{
 		ID:   as.cur.ID,
@@ -161,23 +167,23 @@ func (as *agentServer) authentication(mux tunopen.Muxer, timeout time.Duration) 
 
 	ret, err1 := agentRepo.UpdateOne(ctx, filter, update)
 	if err1 == nil && ret.ModifiedCount != 0 {
-		as.log().Info("agent 上线成功", attrs...)
+		as.opt.log().Info("agent 上线成功", attrs...)
 		return req, peer, true
 	}
 
-	as.opt.huber.DelByID(agtID)
+	as.opt.Huber.DelByID(agtID)
 	_ = as.writeError(sig, http.StatusInternalServerError, err1)
 
 	if err1 != nil {
 		attrs = append(attrs, slog.Any("error", err1))
 	}
-	as.log().Error("agent 上线失败", attrs...)
+	as.opt.log().Error("agent 上线失败", attrs...)
 
 	return nil, nil, false
 }
 
 // checkout 获得 agent 节点的信息，如果不存在自动创建。
-func (as *agentServer) checkout(req *authRequest, timeout time.Duration) (*model.Agent, error) {
+func (as *agentServer) checkout(req *AuthRequest, timeout time.Duration) (*model.Agent, error) {
 	machineID := req.MachineID
 	agentRepo := as.repo.Agent()
 
@@ -222,33 +228,21 @@ func (as *agentServer) disconnected(peer linkhub.Peer, timeout time.Duration) {
 
 	agentRepo := as.repo.Agent()
 	_, _ = agentRepo.UpdateByID(ctx, id, update)
-	as.opt.huber.DelByID(id)
-}
-
-func (as *agentServer) log() *slog.Logger {
-	if l := as.opt.logger; l != nil {
-		return l
-	}
-
-	return slog.Default()
+	as.opt.Huber.DelByID(id)
 }
 
 func (as *agentServer) getServer(p linkhub.Peer) *http.Server {
-	srv := as.opt.server
-	if srv == nil {
-		srv = &http.Server{Handler: http.NotFoundHandler()}
-	}
-	baseCtxFunc := srv.BaseContext
-	srv.BaseContext = func(ln net.Listener) context.Context {
-		ctx := context.Background()
-		if baseCtxFunc != nil {
-			ctx = baseCtxFunc(ln)
-		}
-
-		return linkhub.WithValue(ctx, p)
+	h := as.opt.Handler
+	if h == nil {
+		h = http.NotFoundHandler()
 	}
 
-	return srv
+	return &http.Server{
+		Handler: h,
+		BaseContext: func(net.Listener) context.Context {
+			return linkhub.WithValue(context.Background(), p)
+		},
+	}
 }
 
 func (as *agentServer) writeError(w io.Writer, code int, err error) error {
@@ -257,10 +251,31 @@ func (as *agentServer) writeError(w io.Writer, code int, err error) error {
 		resp.Message = err.Error()
 	}
 
-	return tunopen.WriteAuth(w, resp)
+	return muxproto.WriteJSON(w, resp)
 }
 
 func (as *agentServer) writeSucceed(w io.Writer) error {
 	resp := &authResponse{Code: http.StatusAccepted}
-	return tunopen.WriteAuth(w, resp)
+	return muxproto.WriteJSON(w, resp)
+}
+
+type mutuallyClose struct {
+	mux  muxconn.Muxer
+	mtx  sync.Mutex
+	kill bool
+}
+
+func (m *mutuallyClose) close() {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	_ = m.mux.Close()
+	m.kill = true
+}
+
+func (m *mutuallyClose) closed() bool {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	return m.kill
 }

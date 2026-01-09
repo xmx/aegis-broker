@@ -1,6 +1,6 @@
 package serverd
 
-type authRequest struct {
+type AuthRequest struct {
 	MachineID  string   `json:"machine_id"          validate:"required,gte=10,lte=100"`
 	Inet       string   `json:"inet"                validate:"required,ip"`
 	Goos       string   `json:"goos"                validate:"required,oneof=darwin dragonfly illumos ios js wasip1 linux android solaris freebsd nacl netbsd openbsd plan9 windows aix"`
@@ -10,7 +10,6 @@ type authRequest struct {
 	Hostname   string   `json:"hostname,omitzero"`
 	Workdir    string   `json:"workdir,omitzero"`
 	Executable string   `json:"executable,omitzero"`
-	Username   string   `json:"username,omitzero"`
 }
 
 type authResponse struct {

@@ -10,13 +10,13 @@ import (
 
 	"github.com/robfig/cron/v3"
 	"github.com/xmx/aegis-common/library/cronv3"
-	"github.com/xmx/aegis-common/tunnel/tunopen"
+	"github.com/xmx/aegis-common/muxlink/muxconn"
 	"github.com/xmx/aegis-control/datalayer/model"
 	"github.com/xmx/aegis-control/linkhub"
 	"github.com/xmx/metrics"
 )
 
-func NewTransmitMetrics(this *model.Broker, mux tunopen.Muxer, hub linkhub.Huber, cfg MetricsConfigFunc) cronv3.Tasker {
+func NewTransmitMetrics(this *model.Broker, mux muxconn.Muxer, hub linkhub.Huber, cfg MetricsConfigFunc) cronv3.Tasker {
 	id := this.ID.Hex()
 	name := this.Name
 	hostname, _ := os.Hostname()
@@ -31,7 +31,7 @@ func NewTransmitMetrics(this *model.Broker, mux tunopen.Muxer, hub linkhub.Huber
 }
 
 type transmitMetrics struct {
-	mux       tunopen.Muxer
+	mux       muxconn.Muxer
 	hub       linkhub.Huber
 	cfg       MetricsConfigFunc
 	brokLabel string

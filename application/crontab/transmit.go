@@ -7,7 +7,7 @@ import (
 
 	"github.com/robfig/cron/v3"
 	"github.com/xmx/aegis-common/library/cronv3"
-	"github.com/xmx/aegis-common/tunnel/tunopen"
+	"github.com/xmx/aegis-common/muxlink/muxconn"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"github.com/xmx/aegis-control/linkhub"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -15,7 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-func NewTransmit(id bson.ObjectID, mux tunopen.Muxer, hub linkhub.Huber, repo repository.All) cronv3.Tasker {
+func NewTransmit(id bson.ObjectID, mux muxconn.Muxer, hub linkhub.Huber, repo repository.All) cronv3.Tasker {
 	return &transmit{
 		id:   id,
 		mux:  mux,
@@ -26,7 +26,7 @@ func NewTransmit(id bson.ObjectID, mux tunopen.Muxer, hub linkhub.Huber, repo re
 
 type transmit struct {
 	id   bson.ObjectID
-	mux  tunopen.Muxer
+	mux  muxconn.Muxer
 	hub  linkhub.Huber
 	repo repository.All
 }
