@@ -6,8 +6,8 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/xgfone/ship/v5 v5.3.2
-	github.com/xmx/aegis-common v0.0.0-20260109122842-6242429f9512
-	github.com/xmx/aegis-control v0.0.0-20260109123521-5379d564e054
+	github.com/xmx/aegis-common v0.0.0-20260110011026-cab6c5c3cd13
+	github.com/xmx/aegis-control v0.0.0-20260110013136-134b97f69664
 	github.com/xmx/metrics v0.0.0-20251124113446-33b980340aea
 	go.mongodb.org/mongo-driver/v2 v2.4.1
 	golang.org/x/net v0.48.0
@@ -34,5 +34,5 @@ require (
 	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/text v0.33.0 // indirect
 )

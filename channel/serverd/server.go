@@ -35,7 +35,7 @@ type agentServer struct {
 func (as *agentServer) AcceptMUX(mux muxconn.Muxer) {
 	defer mux.Close()
 
-	now := time.Now()
+	connectAt := time.Now()
 	if !as.limitAllowed(mux) {
 		as.log().Warn("限流器抑制上线", "remote_addr", mux.RemoteAddr())
 	}
@@ -50,13 +50,13 @@ func (as *agentServer) AcceptMUX(mux muxconn.Muxer) {
 	info := peer.Info()
 	as.log().Info("节点上线成功", "info", info)
 	if l := as.opts.ConnectListener; l != nil {
-		l.OnConnection(now, peer)
+		l.OnConnection(peer, connectAt)
 	}
 
 	err = as.serveHTTP(peer)
 	as.log().Warn("节点下线了", "info", info, "error", err)
 
-	as.disconnection(peer)
+	as.disconnection(peer, connectAt)
 }
 
 //goland:noinspection GoUnhandledErrorResult
@@ -163,18 +163,18 @@ func (as *agentServer) log() *slog.Logger {
 	return slog.Default()
 }
 
-func (as *agentServer) disconnection(peer linkhub.Peer) {
-	now := time.Now()
+func (as *agentServer) disconnection(peer linkhub.Peer, connectAt time.Time) {
+	disconnectAt := time.Now()
 	id := peer.ID()
 	info := peer.Info()
 	mux := peer.Muxer()
-	rx, tx := mux.Traffic()
+	tx, rx := mux.Traffic() // 互换
 
 	attrs := []any{"info", info}
 	filter := bson.D{{"_id", id}, {"status", true}}
 	update := bson.M{"$set": bson.M{
-		"status": false, "tunnel_stat.disconnected_at": now,
-		"tunnel_stat.receive_bytes": tx, "tunnel_stat.transmit_bytes": rx,
+		"status": false, "tunnel_stat.disconnected_at": disconnectAt,
+		"tunnel_stat.receive_bytes": rx, "tunnel_stat.transmit_bytes": tx,
 		// 注意：此时是站在 broker 视角统计的流量，所以 rx tx 要互换一下。
 	}}
 
@@ -190,10 +190,37 @@ func (as *agentServer) disconnection(peer linkhub.Peer) {
 	}
 
 	as.deleteHuber(id)
+
+	protocol, subprotocol := mux.Protocol()
+	raddr, laddr := mux.Addr(), mux.RemoteAddr() // 互换
+	history := &model.AgentConnectHistory{
+		AgentID:   id,
+		MachineID: info.Name,
+		Semver:    info.Semver,
+		Inet:      info.Inet,
+		Goos:      info.Goos,
+		Goarch:    info.Goarch,
+		TunnelStat: model.TunnelStatHistory{
+			ConnectedAt:    connectAt,
+			DisconnectedAt: disconnectAt,
+			Protocol:       protocol,
+			Subprotocol:    subprotocol,
+			LocalAddr:      laddr.String(),
+			RemoteAddr:     raddr.String(),
+			ReceiveBytes:   rx,
+			TransmitBytes:  tx,
+		},
+	}
+	hisRepo := as.repo.AgentConnectHistory()
+	if _, err := hisRepo.InsertOne(ctx, history); err != nil {
+		attrs = append(attrs, "save_history_error", err)
+		as.log().Error("保存连接历史记录错误", attrs...)
+	}
+
 	as.log().Info("节点下线处理完毕", attrs...)
 
 	if l := as.opts.ConnectListener; l != nil {
-		l.OnDisconnection(now, info)
+		l.OnDisconnection(info, connectAt, disconnectAt)
 	}
 }
 
@@ -283,14 +310,17 @@ func (as *agentServer) updateAgentOnline(mux muxconn.Muxer, req *AuthRequest, ag
 	now := time.Now()
 	id := agt.ID
 	protocol, subprotocol := mux.Protocol()
-	laddr, raddr := mux.Addr(), mux.RemoteAddr()
+	raddr, laddr := mux.Addr(), mux.RemoteAddr() // 互换
+	tx, rx := mux.Traffic()                      // 互换
 	tunStat := &model.TunnelStat{
-		ConnectedAt: now,
-		KeepaliveAt: now,
-		Protocol:    protocol,
-		Subprotocol: subprotocol,
-		LocalAddr:   laddr.String(),
-		RemoteAddr:  raddr.String(),
+		ConnectedAt:   now,
+		KeepaliveAt:   now,
+		Protocol:      protocol,
+		Subprotocol:   subprotocol,
+		ReceiveBytes:  rx,
+		TransmitBytes: tx,
+		LocalAddr:     laddr.String(),
+		RemoteAddr:    raddr.String(),
 	}
 	exeStat := &model.ExecuteStat{
 		Inet:       req.Inet,

@@ -72,11 +72,11 @@ func (t *transmit) agents(ctx context.Context) []error {
 	for _, p := range t.hub.Peers() {
 		id := p.ID()
 		mux := p.Muxer()
-		rx, tx := mux.Traffic()
-		// 在 broker 端统计 agent 的传输数据，rx tx 要互换
+		tx, rx := mux.Traffic() // 在 broker 端统计 agent 的传输数据，rx tx 要互换
+
 		update := bson.M{"$set": bson.M{
-			"tunnel_stat.receive_bytes":  tx,
-			"tunnel_stat.transmit_bytes": rx,
+			"tunnel_stat.receive_bytes":  rx,
+			"tunnel_stat.transmit_bytes": tx,
 		}}
 
 		filter := bson.D{
