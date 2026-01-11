@@ -199,8 +199,10 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 	var agentAPIs []shipx.RouteRegister
 	{
+		healthSvc := agtservice.NewHealth(repoAll, log)
 		systemSvc := agtservice.NewSystem(repoAll, log)
 		agentAPIs = append(agentAPIs,
+			agtrestapi.NewHealth(healthSvc),
 			agtrestapi.NewSystem(systemSvc),
 			agtrestapi.NewVictoriaMetrics(victoriaMetricsSvc),
 		)
