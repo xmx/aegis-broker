@@ -327,6 +327,7 @@ func (as *agentServer) updateAgentOnline(mux muxconn.Muxer, req *AuthRequest, ag
 		Inet:       req.Inet,
 		Goos:       req.Goos,
 		Goarch:     req.Goarch,
+		Semver:     req.Semver,
 		PID:        req.PID,
 		Args:       req.Args,
 		Hostname:   req.Hostname,
