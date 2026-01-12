@@ -260,9 +260,12 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		TLSConfig: httpTLS,
 	}
 	quicSrv := &quick.QUICx{
-		Addr:       listenAddr,
-		Accept:     tunAccept,
-		QUICConfig: &quic.Config{TLSConfig: quicTLS},
+		Addr:   listenAddr,
+		Accept: tunAccept,
+		QUICConfig: &quic.Config{
+			TLSConfig:       quicTLS,
+			KeepAlivePeriod: 10 * time.Second,
+		},
 	}
 
 	errs := make(chan error, 2)

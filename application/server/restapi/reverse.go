@@ -12,9 +12,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/xgfone/ship/v5"
 	"github.com/xmx/aegis-broker/application/errcode"
-	"github.com/xmx/aegis-common/library/httpkit"
 	"github.com/xmx/aegis-common/muxlink/muxproto"
 	"github.com/xmx/aegis-common/problem"
+	"github.com/xmx/aegis-common/wsocket"
 )
 
 func NewReverse(dial muxproto.Dialer) *Reverse {
@@ -56,9 +56,7 @@ func NewReverse(dial muxproto.Dialer) *Reverse {
 		EnableCompression: true,
 	}
 	wsd := &websocket.Dialer{
-		NetDialContext:    dial.DialContext,
-		HandshakeTimeout:  10 * time.Second,
-		EnableCompression: true,
+		NetDialContext: dial.DialContext,
 	}
 
 	return &Reverse{
@@ -105,6 +103,7 @@ func (rvs *Reverse) serve(c *ship.Context) error {
 	return nil
 }
 
+//goland:noinspection GoUnhandledErrorResult
 func (rvs *Reverse) serveWebsocket(c *ship.Context, destURL *url.URL) {
 	w, r := c.Response(), c.Request()
 	ctx := r.Context()
@@ -117,15 +116,16 @@ func (rvs *Reverse) serveWebsocket(c *ship.Context, destURL *url.URL) {
 	defer cli.Close()
 
 	destURL.Scheme = "ws"
-	srv, _, err := rvs.wsd.DialContext(ctx, destURL.String(), nil)
+	strURL := destURL.String()
+	srv, _, err := rvs.wsd.DialContext(ctx, strURL, nil)
 	if err != nil {
-		c.Errorf("websocket 后端连接失败", "error", err)
+		c.Errorf("连接 agent 后端失败", "url", strURL, "error", err)
 		_ = rvs.writeClose(cli, err)
 		return
 	}
 	defer srv.Close()
 
-	ret := httpkit.ExchangeWebsocket(cli, srv)
+	ret := wsocket.Exchange(cli, srv)
 	c.Infof("websocket 连接结束", slog.Any("result", ret))
 }
 

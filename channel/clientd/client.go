@@ -141,6 +141,7 @@ func (bc *brokerClient) serveHTTP() {
 		err := srv.Serve(bc.mux)
 		bc.log().Warn("通道断开连接了", "error", err)
 
+		_ = bc.mux.Close() // 重连前确保关闭上一个连接
 		mc, _, err1 := bc.openLoop()
 		if err1 != nil {
 			break
