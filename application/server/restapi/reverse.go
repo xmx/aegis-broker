@@ -88,7 +88,7 @@ func (rvs *Reverse) serve(c *ship.Context) error {
 		pth += "/"
 	}
 
-	destURL := muxproto.BrokerToAgentURL(id, pth)
+	destURL := muxproto.ToAgentURL(id, pth)
 	destURL.RawQuery = reqURL.RawQuery
 
 	if c.IsWebSocket() {
