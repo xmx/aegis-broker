@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	quicgo "github.com/quic-go/quic-go"
 	"github.com/robfig/cron/v3"
 	"github.com/xgfone/ship/v5"
 	agtrestapi "github.com/xmx/aegis-broker/application/agent/restapi"
@@ -259,24 +260,37 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		Handler:   exposeSH,
 		TLSConfig: httpTLS,
 	}
-	quicSrv := &quick.QUICx{
-		Addr:   listenAddr,
-		Accept: tunAccept,
-		QUICConfig: &quic.Config{
-			TLSConfig:       quicTLS,
-			KeepAlivePeriod: 10 * time.Second,
-		},
+
+	var quicsrv quick.Server
+	if true {
+		quicsrv = &quick.QUICx{
+			Addr:   listenAddr,
+			Accept: tunAccept,
+			QUICConfig: &quic.Config{
+				TLSConfig:       quicTLS,
+				KeepAlivePeriod: 10 * time.Second,
+			},
+		}
+	} else {
+		quicsrv = &quick.QUICgo{
+			Addr:      listenAddr,
+			Handler:   tunAccept,
+			TLSConfig: quicTLS,
+			QUICConfig: &quicgo.Config{
+				KeepAlivePeriod: 10 * time.Second,
+			},
+		}
 	}
 
 	errs := make(chan error, 2)
 	go listenHTTP(errs, httpSrv, log)
-	go listenQUIC(ctx, errs, quicSrv)
+	go listenQUIC(ctx, errs, quicsrv)
 	select {
 	case err = <-errs:
 	case <-ctx.Done():
 	}
 	_ = httpSrv.Close()
-	_ = quicSrv.Close()
+	_ = quicsrv.Close()
 	_ = mux.Close()
 	{
 		cctx, ccancel := context.WithTimeout(context.Background(), 5*time.Second)
