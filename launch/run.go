@@ -99,7 +99,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 	if tunCliOpt.Semver == "" {
 		info := banner.SelfInfo()
-		tunCliOpt.Semver = info.Version
+		tunCliOpt.Semver = info.Semver
 	}
 	mux, authCfg, err := clientd.Open(dialCfg, tunCliOpt)
 	if err != nil {
@@ -204,6 +204,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		systemSvc := agtservice.NewSystem(repoAll, log)
 		agentAPIs = append(agentAPIs,
 			agtrestapi.NewHealth(healthSvc),
+			agtrestapi.NewPyroscope(),
 			agtrestapi.NewSystem(systemSvc),
 			agtrestapi.NewVictoriaMetrics(victoriaMetricsSvc),
 		)

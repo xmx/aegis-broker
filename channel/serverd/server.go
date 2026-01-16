@@ -191,8 +191,9 @@ func (as *agentServer) disconnection(peer linkhub.Peer, connectAt time.Time) {
 
 	as.deleteHuber(id)
 
-	protocol, subprotocol := mux.Protocol()
+	libName, libModule := mux.Library()
 	raddr, laddr := mux.Addr(), mux.RemoteAddr() // 互换
+	second := int64(disconnectAt.Sub(connectAt).Seconds())
 	history := &model.AgentConnectHistory{
 		AgentID:   id,
 		MachineID: info.Name,
@@ -203,9 +204,8 @@ func (as *agentServer) disconnection(peer linkhub.Peer, connectAt time.Time) {
 		TunnelStat: model.TunnelStatHistory{
 			ConnectedAt:    connectAt,
 			DisconnectedAt: disconnectAt,
-			Duration:       disconnectAt.Sub(connectAt),
-			Protocol:       protocol,
-			Subprotocol:    subprotocol,
+			Second:         second,
+			Library:        model.TunnelLibrary{Name: libName, Module: libModule},
 			LocalAddr:      laddr.String(),
 			RemoteAddr:     raddr.String(),
 			ReceiveBytes:   rx,
@@ -310,14 +310,13 @@ func (as *agentServer) updateAgentOnline(mux muxconn.Muxer, req *AuthRequest, ag
 	// 修改数据库在线状态
 	now := time.Now()
 	id := agt.ID
-	protocol, subprotocol := mux.Protocol()
+	libName, libModule := mux.Library()
 	raddr, laddr := mux.Addr(), mux.RemoteAddr() // 互换
 	tx, rx := mux.Traffic()                      // 互换
 	tunStat := &model.TunnelStat{
 		ConnectedAt:   now,
 		KeepaliveAt:   now,
-		Protocol:      protocol,
-		Subprotocol:   subprotocol,
+		Library:       model.TunnelLibrary{Name: libName, Module: libModule},
 		ReceiveBytes:  rx,
 		TransmitBytes: tx,
 		LocalAddr:     laddr.String(),

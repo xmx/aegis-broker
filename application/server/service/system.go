@@ -42,7 +42,7 @@ func (syt *System) Config() *response.SystemConfig {
 
 func (syt *System) Upgrade(ctx context.Context) (bool, error) {
 	info := banner.SelfInfo()
-	num := model.ParseSemver(info.Version)
+	num := model.ParseSemver(info.Semver)
 
 	attrs := []any{"current", info}
 	syt.log.Info("检查升级", attrs)
