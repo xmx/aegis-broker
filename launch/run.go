@@ -263,7 +263,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	var quicsrv quick.Server
-	if true {
+	if false {
 		quicsrv = &quick.QUICx{
 			Addr:   listenAddr,
 			Accept: tunAccept,
