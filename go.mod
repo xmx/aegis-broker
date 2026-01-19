@@ -7,11 +7,12 @@ require (
 	github.com/quic-go/quic-go v0.59.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/xgfone/ship/v5 v5.3.2
-	github.com/xmx/aegis-common v0.0.0-20260116110754-213badd18af9
-	github.com/xmx/aegis-control v0.0.0-20260116113046-b29ab82d2da5
+	github.com/xmx/aegis-common v0.0.0-20260119060111-f532dbb5d947
+	github.com/xmx/aegis-control v0.0.0-20260119063116-4af1323aa4c3
 	github.com/xmx/metrics v0.0.0-20260116025626-8ee725bd7622
 	go.mongodb.org/mongo-driver/v2 v2.4.1
 	golang.org/x/net v0.49.0
+	golang.org/x/time v0.14.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 

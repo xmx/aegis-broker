@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/xmx/aegis-common/muxlink/muxconn"
+	"golang.org/x/time/rate"
 )
 
 type authRequest struct {
@@ -53,5 +54,7 @@ func (m *muxInstance) Open(ctx context.Context) (net.Conn, error) { return m.loa
 func (m *muxInstance) RemoteAddr() net.Addr                       { return m.load().RemoteAddr() }
 func (m *muxInstance) Library() (string, string)                  { return m.load().Library() }
 func (m *muxInstance) Traffic() (uint64, uint64)                  { return m.load().Traffic() }
+func (m *muxInstance) Limit() rate.Limit                          { return m.load().Limit() }
+func (m *muxInstance) SetLimit(bps rate.Limit)                    { m.load().SetLimit(bps) }
 func (m *muxInstance) load() muxconn.Muxer                        { return *m.ptr.Load() }
 func (m *muxInstance) store(mux muxconn.Muxer)                    { m.ptr.Store(&mux) }
