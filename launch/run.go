@@ -21,6 +21,7 @@ import (
 	srvrestapi "github.com/xmx/aegis-broker/application/server/restapi"
 	srvservice "github.com/xmx/aegis-broker/application/server/service"
 	"github.com/xmx/aegis-broker/channel/clientd"
+	"github.com/xmx/aegis-broker/channel/rpclient"
 	"github.com/xmx/aegis-broker/channel/serverd"
 	"github.com/xmx/aegis-broker/config"
 	"github.com/xmx/aegis-common/banner"
@@ -165,7 +166,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		linkhub.NewSuffixDialer(muxproto.AgentHostSuffix, hub),
 	}
 	dualDialer := muxproto.NewFirstMatchDialer(tunDialers, netDialer)
-	httpCli := &http.Client{Transport: &http.Transport{DialContext: dualDialer.DialContext}}
+	rpcli := rpclient.NewClient(dualDialer, log)
 
 	agtSH := ship.Default()
 	agtSH.NotFound = shipx.NotFound
@@ -192,9 +193,9 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 
 	srvSystemSvc := srvservice.NewSystem(repoAll, hideCfg, bcfg, log)
 	serverAPIs := []shipx.RouteRegister{
-		srvrestapi.NewReverse(dualDialer),
+		srvrestapi.NewReverse(rpcli),
 		srvrestapi.NewEcho(),
-		srvrestapi.NewSystem(srvSystemSvc),
+		srvrestapi.NewSystem(mux, srvSystemSvc),
 		shipx.NewHealth(),
 		shipx.NewPprof(),
 	}
@@ -239,7 +240,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	cronTasks := []cronv3.Tasker{
-		crontab.NewHealth(httpCli),
+		crontab.NewHealth(rpcli),
 		crontab.NewMetrics(curBroker, victoriaMetricsSvc.PushConfig),
 		crontab.NewNetwork(brokerID, repoAll),
 		crontab.NewTransmit(brokerID, mux, hub, repoAll),
@@ -263,13 +264,14 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	var quicsrv quick.Server
-	if false {
+	if true {
 		quicsrv = &quick.QUICx{
 			Addr:   listenAddr,
 			Accept: tunAccept,
 			QUICConfig: &quic.Config{
 				TLSConfig:       quicTLS,
 				KeepAlivePeriod: 10 * time.Second,
+				MaxIdleTimeout:  time.Minute,
 			},
 		}
 	} else {
@@ -279,6 +281,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 			TLSConfig: quicTLS,
 			QUICConfig: &quicgo.Config{
 				KeepAlivePeriod: 10 * time.Second,
+				MaxIdleTimeout:  time.Minute,
 			},
 		}
 	}

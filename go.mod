@@ -1,14 +1,14 @@
 module github.com/xmx/aegis-broker
 
-go 1.25.5
+go 1.25.6
 
 require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/quic-go/quic-go v0.59.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/xgfone/ship/v5 v5.3.2
-	github.com/xmx/aegis-common v0.0.0-20260119060111-f532dbb5d947
-	github.com/xmx/aegis-control v0.0.0-20260119063116-4af1323aa4c3
+	github.com/xmx/aegis-common v0.0.0-20260120061441-f6264d7b4a21
+	github.com/xmx/aegis-control v0.0.0-20260120063448-b5bd12089c10
 	github.com/xmx/metrics v0.0.0-20260116025626-8ee725bd7622
 	go.mongodb.org/mongo-driver/v2 v2.4.1
 	golang.org/x/net v0.49.0

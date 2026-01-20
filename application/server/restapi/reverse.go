@@ -12,18 +12,18 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/xgfone/ship/v5"
 	"github.com/xmx/aegis-broker/application/errcode"
+	"github.com/xmx/aegis-broker/channel/rpclient"
 	"github.com/xmx/aegis-common/muxlink/muxproto"
 	"github.com/xmx/aegis-common/problem"
 	"github.com/xmx/aegis-common/wsocket"
 )
 
-func NewReverse(dial muxproto.Dialer) *Reverse {
-	trip := &http.Transport{DialContext: dial.DialContext}
+func NewReverse(cli *rpclient.Client) *Reverse {
 	resv := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetXForwarded()
 		},
-		Transport: trip,
+		Transport: cli.Transport(),
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			host := r.Host
 			if host == "" {
@@ -56,7 +56,7 @@ func NewReverse(dial muxproto.Dialer) *Reverse {
 		EnableCompression: true,
 	}
 	wsd := &websocket.Dialer{
-		NetDialContext: dial.DialContext,
+		NetDialContext: cli.DialContext,
 	}
 
 	return &Reverse{

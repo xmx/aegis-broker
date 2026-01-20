@@ -6,18 +6,19 @@ import (
 	"time"
 
 	"github.com/robfig/cron/v3"
+	"github.com/xmx/aegis-broker/channel/rpclient"
 	"github.com/xmx/aegis-common/library/cronv3"
 	"github.com/xmx/aegis-common/muxlink/muxproto"
 )
 
-func NewHealth(cli *http.Client) cronv3.Tasker {
+func NewHealth(cli *rpclient.Client) cronv3.Tasker {
 	return &healthPing{
 		cli: cli,
 	}
 }
 
 type healthPing struct {
-	cli *http.Client
+	cli *rpclient.Client
 }
 
 func (hp *healthPing) Info() cronv3.TaskInfo {
