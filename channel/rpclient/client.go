@@ -2,42 +2,29 @@ package rpclient
 
 import (
 	"context"
-	"log/slog"
-	"net"
 	"net/http"
 
 	"github.com/xmx/aegis-common/muxlink/muxproto"
+	"github.com/xmx/aegis-common/muxlink/muxtool"
 )
 
 type Client struct {
-	dia muxproto.Dialer
-	cli *http.Client
-	log *slog.Logger
+	base muxtool.Client
 }
 
-func NewClient(dia muxproto.Dialer, log *slog.Logger) *Client {
-	tran := newHTTPTransport(dia, log)
-	cli := &http.Client{Transport: tran}
-
-	return &Client{
-		dia: dia,
-		cli: cli,
-		log: log,
+func NewClient(base muxtool.Client) Client {
+	return Client{
+		base: base,
 	}
 }
 
-func (c *Client) HTTPClient() *http.Client {
-	return c.cli
+func (c Client) BaseClient() muxtool.Client {
+	return c.base
 }
 
-func (c *Client) Do(req *http.Request) (*http.Response, error) {
-	return c.cli.Do(req)
-}
+func (c Client) Ping(ctx context.Context) error {
+	reqURL := muxproto.ToServerURL("/api/health/ping")
+	strURL := reqURL.String()
 
-func (c *Client) Transport() http.RoundTripper {
-	return c.cli.Transport
-}
-
-func (c *Client) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	return c.dia.DialContext(ctx, network, address)
+	return c.base.JSON(ctx, http.MethodGet, strURL, nil)
 }

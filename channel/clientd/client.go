@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/xmx/aegis-common/muxlink/muxconn"
-	"github.com/xmx/aegis-common/muxlink/muxproto"
+	"github.com/xmx/aegis-common/muxlink/muxtool"
 )
 
 type Options struct {
@@ -95,7 +95,7 @@ func (bc *brokerClient) open() (muxconn.Muxer, *AuthConfig, error) {
 	}
 
 	laddr, raddr := mux.Addr(), mux.RemoteAddr()
-	outboundIP := muxproto.Outbound(laddr, raddr)
+	outboundIP := muxtool.Outbound(laddr, raddr)
 	bc.req.Inet = outboundIP.String()
 
 	ctx, cancel := bc.perContext()
@@ -110,14 +110,14 @@ func (bc *brokerClient) open() (muxconn.Muxer, *AuthConfig, error) {
 
 	timeout := bc.timeout()
 	_ = conn.SetWriteDeadline(time.Now().Add(timeout))
-	if err = muxproto.WriteJSON(conn, bc.req); err != nil {
+	if err = muxtool.WriteAuth(conn, bc.req); err != nil {
 		_ = mux.Close()
 		return nil, nil, err
 	}
 
 	resp := new(authResponse)
 	_ = conn.SetReadDeadline(time.Now().Add(timeout))
-	if err = muxproto.ReadJSON(conn, resp); err != nil {
+	if err = muxtool.ReadAuth(conn, resp); err != nil {
 		_ = mux.Close()
 		return nil, nil, err
 	}

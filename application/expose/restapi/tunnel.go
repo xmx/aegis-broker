@@ -37,16 +37,19 @@ func (tnl *Tunnel) open(c *ship.Context) error {
 	proto := c.Query("protocol")
 
 	var mux muxconn.Muxer
+	parent := c.Request().Context()
 	if proto == "smux" {
-		mux, err = muxconn.NewSMUX(conn, nil, true)
+		mux, err = muxconn.NewSMUX(parent, conn, nil, true)
 	} else {
-		mux, err = muxconn.NewYaMUX(conn, nil, true)
+		mux, err = muxconn.NewYaMUX(parent, conn, nil, true)
 	}
 	if err != nil {
 		_ = conn.Close()
 		return err
 	}
+
 	tnl.acpt.AcceptMUX(mux)
+	_ = mux.Close()
 
 	return nil
 }

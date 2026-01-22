@@ -30,6 +30,7 @@ import (
 	"github.com/xmx/aegis-common/logger"
 	"github.com/xmx/aegis-common/muxlink/muxconn"
 	"github.com/xmx/aegis-common/muxlink/muxproto"
+	"github.com/xmx/aegis-common/muxlink/muxtool"
 	"github.com/xmx/aegis-common/profile"
 	"github.com/xmx/aegis-common/shipx"
 	"github.com/xmx/aegis-common/stegano"
@@ -152,21 +153,19 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 	}
 
 	loadCert := repoAll.Certificate().Enables
-	certPool := tlscert.NewCertPool(loadCert, true, log)
+	certPool := tlscert.NewMatch(loadCert, log)
 
 	brokerID := curBroker.ID
 	agentSvc := expservice.NewAgent(repoAll, log)
 	victoriaMetricsSvc := business.NewVictoriaMetrics(repoAll, curBroker, log)
 	_ = agentSvc.Reset(ctx, curBroker.ID)
 
-	hub := linkhub.NewHub(4096)
-	netDialer := &net.Dialer{Timeout: 30 * time.Second}
-	tunDialers := []muxproto.Dialer{
-		muxproto.NewMatchHostDialer(muxproto.ServerHost, mux),
-		linkhub.NewSuffixDialer(muxproto.AgentHostSuffix, hub),
-	}
-	dualDialer := muxproto.NewFirstMatchDialer(tunDialers, netDialer)
-	rpcli := rpclient.NewClient(dualDialer, log)
+	hub := linkhub.NewHub(muxproto.AgentHost)
+	sysdial := &net.Dialer{Timeout: 30 * time.Second}
+	muxdial := muxproto.NewMUXOpener(mux, muxproto.ServerHost)
+	mixdial := rpclient.NewMixedDialer(muxdial, hub, sysdial)
+	basecli := muxtool.NewClient(mixdial, log)
+	rpcli := rpclient.NewClient(basecli)
 
 	agtSH := ship.Default()
 	agtSH.NotFound = shipx.NotFound
@@ -255,8 +254,8 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		listenAddr = ":443"
 	}
 
-	httpTLS := &tls.Config{GetCertificate: certPool.Match, MinVersion: tls.VersionTLS13} // TLSv1.3 绕过阿里云未备案域名拦截。
-	quicTLS := &tls.Config{GetCertificate: certPool.Match, MinVersion: tls.VersionTLS13, NextProtos: []string{"aegis"}}
+	httpTLS := &tls.Config{GetCertificate: certPool.GetCertificate, MinVersion: tls.VersionTLS13}
+	quicTLS := &tls.Config{GetCertificate: certPool.GetCertificate, MinVersion: tls.VersionTLS13, NextProtos: []string{"aegis"}}
 	httpSrv := &http.Server{
 		Addr:      listenAddr,
 		Handler:   exposeSH,

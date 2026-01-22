@@ -10,6 +10,7 @@ import (
 
 	"github.com/xmx/aegis-common/muxlink/muxconn"
 	"github.com/xmx/aegis-common/muxlink/muxproto"
+	"github.com/xmx/aegis-common/muxlink/muxtool"
 	"github.com/xmx/aegis-control/datalayer/model"
 	"github.com/xmx/aegis-control/datalayer/repository"
 	"github.com/xmx/aegis-control/linkhub"
@@ -49,8 +50,8 @@ func (as *agentServer) AcceptMUX(mux muxconn.Muxer) {
 
 	info := peer.Info()
 	as.log().Info("节点上线成功", "info", info)
-	if l := as.opts.ConnectListener; l != nil {
-		l.OnConnection(peer, connectAt)
+	if sh := as.opts.ServerHooker; sh != nil {
+		sh.OnConnected(info, connectAt)
 	}
 
 	err = as.serveHTTP(peer)
@@ -63,7 +64,7 @@ func (as *agentServer) AcceptMUX(mux muxconn.Muxer) {
 func (as *agentServer) authentication(mux muxconn.Muxer) (linkhub.Peer, error) {
 	timeout := as.timeout()
 
-	fc := muxproto.NewFlagClose(mux)
+	fc := muxtool.NewFlagCloser(mux)
 	timer := time.AfterFunc(timeout, fc.Close)
 	conn, err := mux.Accept()
 	timer.Stop()
@@ -77,7 +78,7 @@ func (as *agentServer) authentication(mux muxconn.Muxer) (linkhub.Peer, error) {
 
 	req := new(AuthRequest)
 	_ = conn.SetReadDeadline(time.Now().Add(timeout))
-	if err = muxproto.ReadJSON(conn, req); err != nil {
+	if err = muxtool.ReadAuth(conn, req); err != nil {
 		as.log().Warn("读取认证报文错误", "error", err)
 		return nil, err
 	}
@@ -111,8 +112,8 @@ func (as *agentServer) authentication(mux muxconn.Muxer) (linkhub.Peer, error) {
 		Name: req.MachineID, Inet: req.Inet, Goos: req.Goos, Goarch: req.Goarch,
 		Hostname: req.Hostname, Semver: req.Semver,
 	}
-	peer := linkhub.NewPeer(agentID, mux, info)
-	if succeed := as.putHuber(peer); !succeed {
+	peer := as.putHuber(agentID, mux, info)
+	if peer == nil {
 		err = errors.New("此节点已经在线了（连接池）")
 		as.log().Warn("节点重复上线（连接池）", attrs...)
 		as.responseError(conn, err, http.StatusConflict)
@@ -220,8 +221,8 @@ func (as *agentServer) disconnection(peer linkhub.Peer, connectAt time.Time) {
 
 	as.log().Info("节点下线处理完毕", attrs...)
 
-	if l := as.opts.ConnectListener; l != nil {
-		l.OnDisconnection(info, connectAt, disconnectAt)
+	if sh := as.opts.ServerHooker; sh != nil {
+		sh.OnDisconnected(info, connectAt, disconnectAt)
 	}
 }
 
@@ -261,7 +262,7 @@ func (as *agentServer) responseError(conn net.Conn, err error, code int) error {
 	d := as.timeout()
 	_ = conn.SetWriteDeadline(time.Now().Add(d))
 
-	return muxproto.WriteJSON(conn, dat)
+	return muxtool.WriteAuth(conn, dat)
 }
 
 func (as *agentServer) responseAccepted(conn net.Conn) error {
@@ -270,7 +271,7 @@ func (as *agentServer) responseAccepted(conn net.Conn) error {
 	d := as.timeout()
 	_ = conn.SetWriteDeadline(time.Now().Add(d))
 
-	return muxproto.WriteJSON(conn, dat)
+	return muxtool.WriteAuth(conn, dat)
 }
 
 // checkout 获得 agent 节点的信息，如果不存在自动创建。
@@ -351,12 +352,12 @@ func (as *agentServer) updateAgentOnline(mux muxconn.Muxer, req *AuthRequest, ag
 	return repo.UpdateOne(ctx, filter, update)
 }
 
-func (as *agentServer) putHuber(peer linkhub.Peer) bool {
-	return as.opts.Huber.Put(peer)
+func (as *agentServer) putHuber(id bson.ObjectID, mux muxconn.Muxer, inf linkhub.Info) linkhub.Peer {
+	return as.opts.Huber.Put(id, mux, inf)
 }
 
 func (as *agentServer) deleteHuber(id bson.ObjectID) {
-	as.opts.Huber.DelByID(id)
+	as.opts.Huber.DelID(id)
 }
 
 func (as *agentServer) serveHTTP(peer linkhub.Peer) error {

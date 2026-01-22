@@ -18,12 +18,14 @@ import (
 	"github.com/xmx/aegis-common/wsocket"
 )
 
-func NewReverse(cli *rpclient.Client) *Reverse {
+func NewReverse(cli rpclient.Client) *Reverse {
+	base := cli.BaseClient()
+
 	resv := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetXForwarded()
 		},
-		Transport: cli.Transport(),
+		Transport: base.Transport(),
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			host := r.Host
 			if host == "" {
@@ -56,7 +58,7 @@ func NewReverse(cli *rpclient.Client) *Reverse {
 		EnableCompression: true,
 	}
 	wsd := &websocket.Dialer{
-		NetDialContext: cli.DialContext,
+		NetDialContext: base.DialContext,
 	}
 
 	return &Reverse{

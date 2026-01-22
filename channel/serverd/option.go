@@ -12,15 +12,15 @@ import (
 )
 
 type Options struct {
-	CurrentBroker   CurrentBroker
-	ConnectListener linkhub.ConnectListener
-	Handler         http.Handler
-	Huber           linkhub.Huber
-	Validator       func(any) error // 认证报文参数校验器
-	Limiter         func(muxconn.Muxer) bool
-	Logger          *slog.Logger
-	Timeout         time.Duration
-	Context         context.Context
+	CurrentBroker CurrentBroker
+	ServerHooker  linkhub.ServerHooker
+	Handler       http.Handler
+	Huber         linkhub.Huber
+	Validator     func(any) error // 认证报文参数校验器
+	Limiter       func(muxconn.Muxer) bool
+	Logger        *slog.Logger
+	Timeout       time.Duration
+	Context       context.Context
 }
 
 type CurrentBroker struct {
