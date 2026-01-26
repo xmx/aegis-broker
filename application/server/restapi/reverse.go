@@ -2,7 +2,6 @@ package restapi
 
 import (
 	"log/slog"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -11,10 +10,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/xgfone/ship/v5"
-	"github.com/xmx/aegis-broker/application/errcode"
 	"github.com/xmx/aegis-broker/channel/rpclient"
 	"github.com/xmx/aegis-common/muxlink/muxproto"
-	"github.com/xmx/aegis-common/problem"
 	"github.com/xmx/aegis-common/wsocket"
 )
 
@@ -26,31 +23,6 @@ func NewReverse(cli rpclient.Client) *Reverse {
 			pr.SetXForwarded()
 		},
 		Transport: base.Transport(),
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			host := r.Host
-			if host == "" {
-				host = r.URL.Host
-			}
-
-			prob := &problem.Details{
-				Host:     host,
-				Status:   http.StatusBadGateway,
-				Instance: r.URL.Path,
-				Method:   r.Method,
-				Datetime: time.Now().UTC(),
-			}
-
-			if ae, ok := err.(*net.OpError); ok {
-				addr := ae.Addr.String()
-				nodeID, _, found := strings.Cut(addr, muxproto.AgentHostSuffix)
-				if found {
-					err = errcode.FmtAgentDisconnect.Fmt(nodeID)
-				}
-			}
-			prob.Detail = err.Error()
-
-			_ = prob.JSON(w)
-		},
 	}
 	wsu := &websocket.Upgrader{
 		HandshakeTimeout:  10 * time.Second,

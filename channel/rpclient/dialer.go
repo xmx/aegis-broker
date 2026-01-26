@@ -38,7 +38,7 @@ func (m *mixedDialer) DialContext(ctx context.Context, network, address string) 
 		if found && domain == m.hub.Domain() {
 			peer := m.hub.Get(host)
 			if peer == nil {
-				return nil, peerUnreachable(network, host)
+				return nil, agentUnreachable(network, host)
 			}
 			mux := peer.Muxer()
 
@@ -54,15 +54,15 @@ func (m *mixedDialer) DialContext(ctx context.Context, network, address string) 
 		Op:   "dial",
 		Net:  network,
 		Addr: &net.UnixAddr{Net: network, Name: address},
-		Err:  net.UnknownNetworkError("没有找到任何拨号器"),
+		Err:  net.UnknownNetworkError("没有找到合适的拨号器"),
 	}
 }
 
-func peerUnreachable(network, address string) error {
+func agentUnreachable(network, address string) error {
 	return &net.OpError{
 		Op:   "lookup",
-		Net:  "tunnel",
+		Net:  "agent",
 		Addr: &net.UnixAddr{Net: network, Name: address},
-		Err:  net.UnknownNetworkError("节点未上线或未注册"),
+		Err:  net.UnknownNetworkError("节点已离线或未注册"),
 	}
 }

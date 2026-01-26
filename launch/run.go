@@ -18,6 +18,7 @@ import (
 	"github.com/xmx/aegis-broker/application/crontab"
 	exprestapi "github.com/xmx/aegis-broker/application/expose/restapi"
 	expservice "github.com/xmx/aegis-broker/application/expose/service"
+	"github.com/xmx/aegis-broker/application/server/middle"
 	srvrestapi "github.com/xmx/aegis-broker/application/server/restapi"
 	srvservice "github.com/xmx/aegis-broker/application/server/service"
 	"github.com/xmx/aegis-broker/channel/clientd"
@@ -40,6 +41,12 @@ import (
 	"github.com/xmx/aegis-control/quick"
 	"github.com/xmx/aegis-control/tlscert"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.38.0"
 	"golang.org/x/net/quic"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -74,7 +81,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		return err
 	}
 
-	crond := cronv3.New(ctx, log, cron.WithSeconds())
+	crond := cronv3.New(log, cron.WithSeconds())
 	crond.Start()
 	defer crond.Stop()
 
@@ -212,7 +219,8 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 
 	// server RPC 路由注册。
 	{
-		apiRGB := srvSH.Group("/api")
+		otelMid := middle.NewOtel()
+		apiRGB := srvSH.Group("/api").Use(otelMid)
 		if err = shipx.RegisterRoutes(apiRGB, serverAPIs); err != nil {
 			return err
 		}
@@ -238,6 +246,12 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		}
 	}
 
+	tracer, err := initTracer(ctx)
+	if err != nil {
+		return err
+	}
+	defer tracer.Shutdown(ctx)
+
 	cronTasks := []cronv3.Tasker{
 		crontab.NewHealth(rpcli),
 		crontab.NewMetrics(curBroker, victoriaMetricsSvc.PushConfig),
@@ -246,7 +260,7 @@ func Exec(ctx context.Context, crd profile.Reader[config.Config]) error {
 		crontab.NewTransmitMetrics(curBroker, mux, hub, victoriaMetricsSvc.PushConfig),
 	}
 	for _, task := range cronTasks {
-		_, _ = crond.AddTask(task)
+		_ = crond.AddTask(task)
 	}
 
 	listenAddr := bcfg.Server.Addr
@@ -320,4 +334,29 @@ func listenHTTP(errs chan<- error, srv *http.Server, log *slog.Logger) {
 
 func listenQUIC(ctx context.Context, errs chan<- error, srv quick.Server) {
 	errs <- srv.ListenAndServe(ctx)
+}
+
+func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
+	exp, err := otlptracehttp.New(
+		ctx,
+		otlptracehttp.WithEndpoint("tempo.example.com"),
+		otlptracehttp.WithHeaders(map[string]string{
+			"X-Scope-OrgID": "aegis",
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exp),
+		sdktrace.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("aegis-broker"),
+		)),
+	)
+
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	return tp, nil
 }
